@@ -1,0 +1,74 @@
+<idea-plugin>
+  <id>com.ashelkov.hoon.plugin</id>
+  <name>Hoon Language</name>
+  <vendor email="a@ashelkov.com" url="https://ashelkov.com">ashelkov</vendor>
+
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.java</depends>
+
+  <description>
+    <![CDATA[
+      Plugin to support the Hoon programming language.
+    ]]>
+  </description>
+  <change-notes>
+    <![CDATA[]]>
+  </change-notes>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <fileType name="Hoon File"
+              implementationClass="com.ashelkov.hoon.plugin.HoonFileType"
+              fieldName="INSTANCE"
+              language="Hoon"
+              extensions="hoon"/>
+    <lang.parserDefinition language="Hoon"
+                           implementationClass="com.ashelkov.hoon.plugin.HoonParserDefinition"/>
+
+    <!--    TODO -->
+
+<!--    <lang.syntaxHighlighterFactory language="Hoon"-->
+<!--                                   implementationClass="org.intellij.sdk.language.SimpleSyntaxHighlighterFactory"/>-->
+
+<!--    <colorSettingsPage implementation="org.intellij.sdk.language.SimpleColorSettingsPage"/>-->
+
+<!--    <annotator language="JAVA"-->
+<!--               implementationClass="org.intellij.sdk.language.SimpleAnnotator"/>-->
+
+<!--    <codeInsight.lineMarkerProvider language="JAVA"-->
+<!--                                    implementationClass="org.intellij.sdk.language.SimpleLineMarkerProvider"/>-->
+
+<!--    <completion.contributor language="Hoon"-->
+<!--                            implementationClass="org.intellij.sdk.language.SimpleCompletionContributor"/>-->
+
+<!--    <psi.referenceContributor language="JAVA"-->
+<!--                              implementation="org.intellij.sdk.language.SimpleReferenceContributor"/>-->
+
+<!--    <lang.refactoringSupport language="Hoon"-->
+<!--                             implementationClass="org.intellij.sdk.language.SimpleRefactoringSupportProvider"/>-->
+
+<!--    <lang.findUsagesProvider language="Hoon"-->
+<!--                             implementationClass="org.intellij.sdk.language.SimpleFindUsagesProvider"/>-->
+
+<!--    <lang.foldingBuilder language="JAVA"-->
+<!--                         implementationClass="org.intellij.sdk.language.SimpleFoldingBuilder"/>-->
+
+<!--    <gotoSymbolContributor implementation="org.intellij.sdk.language.SimpleChooseByNameContributor"/>-->
+
+<!--    <lang.psiStructureViewFactory language="Hoon"-->
+<!--                                  implementationClass="org.intellij.sdk.language.SimpleStructureViewFactory"/>-->
+
+<!--    <lang.formatter language="Hoon"-->
+<!--                    implementationClass="org.intellij.sdk.language.SimpleFormattingModelBuilder"/>-->
+
+<!--    <codeStyleSettingsProvider implementation="org.intellij.sdk.language.SimpleCodeStyleSettingsProvider"/>-->
+
+<!--    <langCodeStyleSettingsProvider implementation="org.intellij.sdk.language.SimpleLanguageCodeStyleSettingsProvider"/>-->
+
+<!--    <lang.commenter language="Hoon"-->
+<!--                    implementationClass="org.intellij.sdk.language.SimpleCommenter"/>-->
+
+<!--    <lang.documentationProvider language="Hoon"-->
+<!--                                implementationClass="org.intellij.sdk.language.SimpleDocumentationProvider"/>-->
+  </extensions>
+
+</idea-plugin>
