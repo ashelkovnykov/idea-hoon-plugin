@@ -1,12 +1,23 @@
 /**
  * Documentation for generating this file:
- *   - https://github.com/JetBrains/Grammar-Kit
- *   - https://github.com/JetBrains/Grammar-Kit/blob/master/HOWTO.md
+ *   _ https://github.com/JetBrains/Grammar-Kit
+ *   _ https://github.com/JetBrains/Grammar-Kit/blob/master/HOWTO.md
  *
  * Example files for inspiration:
- *   - https://github.com/Teinnsei/brainfuck-idea-plugin/blob/master/src/main/scala/Brainfuck.bnf
- *   - https://github.com/JetBrains/intellij-sdk-code-samples/blob/main/simple_language_plugin/src/main/java/org/intellij/sdk/language/Simple.bnf
- *   - https://github.com/JetBrains/Grammar-Kit/blob/master/grammars/Grammar.bnf
+ *   _ https://github.com/Teinnsei/brainfuck-idea-plugin/blob/master/src/main/scala/Brainfuck.bnf
+ *   _ https://github.com/JetBrains/intellij-sdk-code-samples/blob/main/simple_language_plugin/src/main/java/org/intellij/sdk/language/Simple.bnf
+ *   _ https://github.com/JetBrains/Grammar-Kit/blob/master/grammars/Grammar.bnf
+ *
+ * Known issues:
+ *   - Errors for siggal/siggar (~</~>) when:
+ *     - input p has form [p=term q=hoon] AND
+ *     - using form %foo.hoon AND
+ *     - hoon expression begins with a number
+ *   - Errors for molds when:
+ *     - Using Hoon 151 syntax to generate molds (e.g. $~)
+ *     - Using the irregular form of ketcol (^:(a) -> ,a) on wing expressions
+ *   - Errors for SAIL when:
+ *     - Using generic text in tall SAIL form
  */
 {
   parserClass="com.ashelkov.hoon.plugin.parser.HoonParser"
@@ -23,426 +34,1192 @@
   tokenTypeClass="com.ashelkov.hoon.plugin.psi.HoonTokenType"
 
   psiImplUtilClass="com.ashelkov.hoon.plugin.psi.impl.HoonPsiImplUtil"
+
+  extends("tall_......_expression")=tall_hoon_expression
+  extends("wide_......_expression")=wide_hoon_expression
+  extends("irregular_......_expression")=irregular_hoon_expression
 }
 
-//
-// Hoon userspace file grammar
-//
+userspace_hoon_file ::= { ford_block }? hoon_block
 
-// https://urbit.org/docs/arvo/ford/ford#ford-runes
-userspace-hoon-file ::= ford-expression-block? hoon-expression-block
-
-//
+// =====================================================================================================================
 // Ford expression grammar
+// =====================================================================================================================
+
+// https://urbit.org/docs/arvo/ford/ford#ford_runes
+ford_block ::= { gap }?
+               { faswut_block }?
+               { fashep_block }?
+               { faslus_block }?
+               { fastis_block }?
+               { fastar_block }?
+               { fasbuc_block }?
+               { fassig_block }?
+               { fascen_block }?
+
+faswut_block ::= <<fas_block faswut_expression>>
+faswut_expression ::= faswut gap non_hoon_number
+
+fashep_block ::= <<fas_block fashep_expression>>
+fashep_expression ::= fashep gap <<ford_list file_import>>
+
+faslus_block ::= <<fas_block faslus_expression>>
+faslus_expression ::= faslus gap <<ford_list file_import>>
+
+fastis_block ::= <<fas_block fastis_expression>>
+fastis_expression ::= fastis gap SKIN gap simple_path
+
+fastar_block ::= <<fas_block fastar_expression>>
+fastar_expression ::= fastar gap SKIN gap TERM gap simple_path
+
+fasbuc_block ::= <<fas_block fasbuc_expression>>
+fasbuc_expression ::= fasbuc gap SKIN gap TERM gap TERM
+
+fassig_block ::= <<fas_block fassig_expression>>
+fassig_expression ::= fassig gap SKIN gap spec gap simple_path
+
+fascen_block ::= <<fas_block fascen_expression>>
+fascen_expression ::= fascen gap SKIN gap TERM
+
+file_import ::= faceless_file_import | faced_file_import | default_file_import
+faceless_file_import ::= TAR SKIN {extends=file_import}
+faced_file_import ::= SKIN TIS SKIN {extends=file_import}
+default_file_import ::= SKIN {extends=file_import}
+
+private meta fas_block ::= <<gapped_list <<rule>>>> gap
+private meta ford_list ::= <<p>> { COM { ACE | gap }? <<p>> }*
+
+//
+// Ford runes
 //
 
-ford-expression-block ::= { gap }? { fashep-block }? { faslus-block }? { fastis-block }? { fastar-block }? gap
+fake ford_rune ::= FAS (BUC | CEN | HEP | LUS | SIG | TAR | TIS | WUT)
 
-fashep-block ::= <<gapped-list fashep-expression>>
-fashep-expression ::= FASHEP gap <<ford-list file-import>>
+fasbuc ::= FAS BUC {extends=ford_rune}
+fascen ::= FAS CEN {extends=ford_rune}
+fashep ::= FAS HEP {extends=ford_rune}
+faslus ::= FAS LUS {extends=ford_rune}
+fassig ::= FAS SIG {extends=ford_rune}
+fastar ::= FAS TAR {extends=ford_rune}
+fastis ::= FAS TIS {extends=ford_rune}
+faswut ::= FAS WUT {extends=ford_rune}
 
-faslus-block ::= <<gapped-list faslus-expression>>
-faslus-expression ::= FASLUS gap <<ford-list file-import>>
+// =====================================================================================================================
+// Base Hoon expression grammar
+// =====================================================================================================================
 
-fastis-block ::= <<gapped-list fastis-expression>>
-fastis-expression ::= FASTIS gap SKIN gap PATH
+hoon_block ::= <<gapped_list hoon_expression>> { gap }?
+hoon_expression ::= tall_expression | wide_expression
 
-fastar-block ::= <<gapped-list fastar-expression>>
-fastar-expression ::= FASTAR gap SKIN gap MARK gap PATH
+spec_expression ::= tall_spec_expression | wide_spec_expression
+sail_expression ::= tall_sail_expression | wide_sail_expression
 
-file-import ::= default-import | face-import | faceless-import
-default-import ::= SKIN {extends=file-import}
-face-import ::= SKIN '=' SKIN {extends=file-import}
-faceless-import ::= '*' SKIN {extends=file-import}
-
-private meta ford-list ::= <<p>> { ',' { ' ' }? <<p>> }*
-
-//
-// Hoon expression grammar
-//
-
-hoon-expression-block ::= <<gapped-list hoon-expression>>
-hoon-expression ::= rune-expression | sail-expression | literal | spec | wing
-
-rune-expression ::= regular-expression | irregular-expression
-regular-expression ::= tall-expression | wide-expression {extends=rune-expression}
-
-small-expression ::= wide-expression | irregular-expression | literal | spec | wing  {extends=hoon-expression}
-smaller-expression ::= literal | spec | wing {extends=hoon-expression}
-
+// =====================================================================================================================
 // Tall expressions
-tall-expression ::= tall-fixed-expression |
-                    tall-running-expression |
-                    tall-jogging-expression |
-                    tall-core-expression |
-                    tall-unique-expression {
-                        extends=regular-expression
-                    }
+// =====================================================================================================================
 
-tall-fixed-expression ::= tall-1-fixed |
-                          tall-2-fixed |
-                          tall-3-fixed |
-                          tall-4-fixed {
-                              extends=tall-expression
-                          }
-private tall-1-fixed ::= tall-1-fixed-h | tall-1-fixed-s
-private tall-1-fixed-h ::= rune-1-fixed-h tall-input-expression
-private tall-1-fixed-s ::= rune-1-fixed-s tall-input-spec
-private tall-2-fixed ::= tall-2-fixed-hh |
-                         tall-2-fixed-sh |
-                         tall-2-fixed-ss |
-                         tall-2-fixed-th |
-                         tall-zapwut-expression |
-                         tall-tiscom-expression |
-                         tall-wuttis-expression |
-                         tall-bucsig-expression |
-                         tall-buctis-expression
-private tall-2-fixed-hh ::= rune-2-fixed-hh tall-input-expression tall-input-expression
-private tall-2-fixed-sh ::= rune-2-fixed-sh tall-input-spec tall-input-expression
-private tall-2-fixed-ss ::= rune-2-fixed-ss tall-input-spec tall-input-spec
-private tall-2-fixed-th ::= rune-2-fixed-th tall-input-term tall-input-expression
-private tall-zapwut-expression ::= '!?' gap NON_HOON_NUM tall-input-expression
-private tall-tiscom-expression ::= '=,' gap <<list-two-or-more SKIN ':'>> tall-input-expression
-private tall-wuttis-expression ::= '?=' tall-input-spec tall-input-wing
-private tall-bucsig-expression ::= '$~' tall-input-expression tall-input-spec
-private tall-buctis-expression ::= '$=' tall-input-skin tall-input-spec
-private tall-3-fixed ::= tall-3-fixed-hhh | tall-3-fixed-shh | tall-3-fixed-whh | tall-tistar-expression
-private tall-3-fixed-hhh ::= rune-3-fixed-hhh tall-input-expression tall-input-expression tall-input-expression
-private tall-3-fixed-shh ::= rune-3-fixed-shh tall-input-spec tall-input-expression tall-input-expression
-private tall-3-fixed-whh ::= rune-3-fixed-whh tall-input-wing tall-input-expression tall-input-expression
-private tall-tistar-expression ::= '=*' gap (SKIN | irregular-kettis) tall-input-expression tall-input-expression
-private tall-4-fixed ::= tall-4-fixed-hhhh | tall-tisket-expression | tall-tiswut-expression | tall-micgal-expression
-private tall-4-fixed-hhhh ::= rune-4-fixed-hhhh
-                              tall-input-expression
-                              tall-input-expression
-                              tall-input-expression
-                              tall-input-expression
-private tall-tisket-expression ::= '=^' tall-input-spec tall-input-wing tall-input-expression tall-input-expression
-private tall-tiswut-expression ::= '=?'
-                                   tall-input-wing
-                                   tall-input-expression
-                                   tall-input-expression
-                                   tall-input-expression
-private tall-micgal-expression ::= ';<'
-                                   tall-input-spec
-                                   tall-input-expression
-                                   tall-input-expression
-                                   tall-input-expression
+tall_expression ::= tall_hoon_expression | tall_sail_expression | tall_spec_expression {extends=hoon_expression}
 
-tall-running-expression ::= tall-0-running | tall-1-running {extends=tall-expression}
-private tall-0-running ::= tall-0-running-h | tall-0-running-s
-private tall-0-running-h ::= rune-0-running-h { tall-input-expression }+ tall-list-terminator
-private tall-0-running-s ::= rune-0-running-s { tall-input-spec }+ tall-list-terminator
-private tall-1-running ::= rune-1-running-hh tall-input-expression { tall-input-expression }+ tall-list-terminator
+//
+// Tall SAIL expressions
+//
 
-tall-jogging-expression ::= tall-1-jogging | tall-2-jogging {extends=tall-expression}
-private tall-1-jogging ::= tall-1-jogging-wwh | tall-wuthep-expression
-private tall-1-jogging-wwh ::= rune-1-jogging-wwh
-                               tall-input-wing
-                               { tall-input-wing tall-input-expression }+
-                               tall-list-terminator
-private tall-wuthep-expression ::= '?-' tall-input-wing { tall-input-spec tall-input-expression }+ tall-list-terminator
-private tall-2-jogging ::= tall-wutlus-expression | tall-centar-expression
-private tall-wutlus-expression ::= '?+'
-                                   tall-input-wing
-                                   tall-input-expression
-                                   { tall-input-spec tall-input-expression }+
-                                   tall-list-terminator
-private tall-centar-expression ::= '%*'
-                                   tall-input-wing
-                                   tall-input-expression
-                                   { tall-input-wing tall-input-expression }+
-                                   tall-list-terminator
+tall_sail_expression ::= tall_sail_params_only_expression |
+                         tall_sail_simple_expression |
+                         tall_sail_dot_expression |
+                         sail_rune_expression
+                         {extends=tall_expression}
+tall_sail_params_only_expression ::= tall_sail_init { gap tall_sail_param }+ MIC {extends=tall_sail_expression}
+tall_sail_simple_expression ::= tall_sail_init { wide_sail_params_subexpression }?
+                                { gap sail_expression }+
+                                tall_list_terminator
+                                {extends=tall_sail_expression}
+tall_sail_dot_expression ::= tall_sail_init DOT SKIN
+                             { gap sail_expression }+
+                             tall_list_terminator
+                             {extends=tall_sail_expression}
+private tall_sail_init ::= MIC SKIN
+private tall_sail_param ::= TIS sail_skin gap (SIMPLE_TAPE | MULTILINE_TAPE)
+// Handler for generic text in tall SAIL form
+//private tall_sail_input ::= tall_sail_subexpression | tall_sail_text
+//private tall_sail_subexpression ::= gap sail_expression {pin=2}
+//private tall_sail_text ::= gap (literal | constant) {recoverWhile="tall_sail_recover"}
+//private tall_sail_text ::= gap (literal | constant) {recoverWhile="tall_sail_recover"}
+//private tall_sail_recover ::= !(gap)
 
-tall-core-expression ::= tall-0-core | tall-1-core {extends=tall-expression}
-private tall-0-core ::= rune-0-core { tall-input-arm }* tall-core-terminator
-private tall-1-core ::= tall-barcab-expression | tall-barket-expression
-private tall-barcab-expression ::= '|_'  tall-input-spec { tall-input-arm }* tall-core-terminator
-private tall-barket-expression ::= '|^'  tall-input-expression { tall-input-arm }* tall-core-terminator
+//
+// Tall spec expressions
+//
 
-private tall-input-arm ::= <<tall-input arm-expression>>
-arm-expression ::= lusbar-expression | lusbuc-expression | luslus-expression | lustar-expression
-private lusbar-expression ::= '+|' tall-input-term {extends=arm-expression}
-private lusbuc-expression ::= '+$' arm-named-expression {extends=arm-expression}
-private luslus-expression ::= '++' arm-named-expression {extends=arm-expression}
-private lustar-expression ::= '+*' { arm-named-expression }+ {extends=arm-expression}
-private arm-named-expression ::= tall-input-skin tall-input-expression
+tall_spec_expression ::= tall_buc_expression |
+                         tall_cencol_expression |
+                         tall_cenhep_expression |
+                         tall_cenket_expression |
+                         tall_cenlus_expression |
+                         tall_censig_expression
+                         {extends=tall_expression}
 
-tall-unique-expression ::= tall-dotket-expression |
-                           tall-tiscol-expression |
-                           tall-barbuc-expression |
-                           tall-sigcen-expression |
-                           tall-raw-hint-expression {
-                               extends=tall-expression
-                           }
-private tall-dotket-expression ::= '.^' tall-input-spec tall-input-term <<tall-input PATH>> tall-list-terminator
-private tall-tiscol-expression ::= '=:'
-                                   { tall-input-wing tall-input-expression }+
-                                   tall-list-terminator
-                                   tall-input-expression
-private tall-barbuc-expression ::= '|$' { tall-input-skin }+ tall-list-terminator tall-input-spec
-private tall-sigcen-expression ::= '~%'
-                      tall-input-term
-                      tall-input-wing
-                      gap ('~' | { '==' { tall-input-term tall-input-expression }+ tall-list-terminator })
-                      tall-input-expression
-private tall-raw-hint-expression ::= ('~<' | '~>') gap (TERM | { TERM '.' small-expression }) tall-input-expression
+//
+// Tall Hoon expressions
+//
 
-private tall-input-expression ::= <<tall-input hoon-expression>>
-private tall-input-skin ::= <<tall-input SKIN>>
-private tall-input-spec ::= <<tall-input spec>>
-private tall-input-term ::= <<tall-input TERM>>
-private tall-input-wing ::= <<tall-input wing>>
-private tall-core-terminator ::= <<tall-input '--'>>
-private tall-list-terminator ::= <<tall-input '=='>>
+tall_hoon_expression ::= tall_dot_expression |
+                         tall_zap_expression |
+                         tall_tis_expression |
+                         tall_wut_expression |
+                         tall_bar_expression |
+                         tall_col_expression |
+                         tall_cen_expression |
+                         tall_ket_expression |
+                         tall_mic_expression |
+                         tall_sig_expression
+                         {extends=tall_expression}
 
-private meta tall-input ::= gap <<p>>
+// Rune groupings for convenience
+private tall_dot_expression ::= tall_dotket_expression |
+                                tall_dotlus_expression |
+                                tall_dottar_expression |
+                                tall_dottis_expression |
+                                tall_dotwut_expression
+private tall_zap_expression ::= tall_zapcol_expression |
+                                tall_zapcom_expression |
+                                tall_zapdot_expression |
+                                tall_zapgal_expression |
+                                tall_zapgar_expression |
+                                tall_zapmic_expression |
+                                tall_zappat_expression |
+                                tall_zaptis_expression |
+                                tall_zapwut_expression
+private tall_tis_expression ::= tall_tisbar_expression |
+                                tall_tiscol_expression |
+                                tall_tiscom_expression |
+                                tall_tisdot_expression |
+                                tall_tisfas_expression |
+                                tall_tisgal_expression |
+                                tall_tisgar_expression |
+                                tall_tishep_expression |
+                                tall_tisket_expression |
+                                tall_tislus_expression |
+                                tall_tismic_expression |
+                                tall_tissig_expression |
+                                tall_tistar_expression |
+                                tall_tiswut_expression
+private tall_wut_expression ::= tall_wutbar_expression |
+                                tall_wutcol_expression |
+                                tall_wutdot_expression |
+                                tall_wutgal_expression |
+                                tall_wutgar_expression |
+                                tall_wuthep_expression |
+                                tall_wutket_expression |
+                                tall_wutlus_expression |
+                                tall_wutpam_expression |
+                                tall_wutpat_expression |
+                                tall_wutsig_expression |
+                                tall_wuttis_expression |
+                                tall_wutzap_expression
+private tall_bar_expression ::= tall_barbuc_expression |
+                                tall_barcab_expression |
+                                tall_barcen_expression |
+                                tall_barcol_expression |
+                                tall_bardot_expression |
+                                tall_barhep_expression |
+                                tall_barket_expression |
+                                tall_barpat_expression |
+                                tall_barsig_expression |
+                                tall_bartar_expression |
+                                tall_bartis_expression |
+                                tall_barwut_expression
+private tall_col_expression ::= tall_colcab_expression |
+                                tall_colhep_expression |
+                                tall_colket_expression |
+                                tall_collus_expression |
+                                tall_colsig_expression |
+                                tall_coltar_expression
+private tall_cen_expression ::= tall_cencab_expression |
+                                tall_cencol_expression |
+                                tall_cendot_expression |
+                                tall_cenhep_expression |
+                                tall_cenket_expression |
+                                tall_cenlus_expression |
+                                tall_censig_expression |
+                                tall_centar_expression |
+                                tall_centis_expression
+private tall_ket_expression ::= tall_ketbar_expression |
+                                tall_ketcol_expression |
+                                tall_ketdot_expression |
+                                tall_kethep_expression |
+                                tall_ketlus_expression |
+                                tall_ketpam_expression |
+                                tall_ketsig_expression |
+                                tall_kettar_expression |
+                                tall_kettis_expression |
+                                tall_ketwut_expression
+private tall_buc_expression ::= tall_bucbar_expression |
+                                tall_buccab_expression |
+                                tall_buccen_expression |
+                                tall_buccol_expression |
+                                tall_bucgal_expression |
+                                tall_bucgar_expression |
+                                tall_buchep_expression |
+                                tall_bucket_expression |
+                                tall_bucpam_expression |
+                                tall_bucsig_expression |
+                                tall_bucpat_expression |
+                                tall_buctis_expression |
+                                tall_bucwut_expression
+private tall_mic_expression ::= tall_miccol_expression |
+                                tall_micfas_expression |
+                                tall_micgal_expression |
+                                tall_miclus_expression |
+                                tall_micmic_expression |
+                                tall_micsig_expression |
+                                tall_mictar_expression |
+                                tall_mictis_expression
+private tall_sig_expression ::= tall_sigbar_expression |
+                                tall_sigbuc_expression |
+                                tall_sigcab_expression |
+                                tall_sigcen_expression |
+                                tall_sigfas_expression |
+                                tall_siggal_expression |
+                                tall_siggar_expression |
+                                tall_siglus_expression |
+                                tall_sigpam_expression |
+                                tall_sigtis_expression |
+                                tall_sigwut_expression |
+                                tall_sigzap_expression
 
+// Rune expressions
+// . runes
+tall_dotket_expression ::= dotket tall_input_spec tall_input_term { tall_input_hoon }+ tall_list_terminator
+tall_dotlus_expression ::= dotlus tall_input_hoon
+tall_dottar_expression ::= dottar tall_input_hoon tall_input_hoon
+tall_dottis_expression ::= dottis tall_input_hoon tall_input_hoon
+tall_dotwut_expression ::= dotwut tall_input_hoon
+
+// ! runes
+tall_zapcol_expression ::= zapcol tall_input_hoon
+tall_zapcom_expression ::= zapcom tall_input_hoon tall_input_hoon
+tall_zapdot_expression ::= zapdot tall_input_hoon
+tall_zapgal_expression ::= zapgal tall_input_spec tall_input_hoon
+tall_zapgar_expression ::= zapgar tall_input_hoon
+tall_zapmic_expression ::= zapmic tall_input_hoon tall_input_hoon
+tall_zappat_expression ::= zappat tall_input_wing tall_input_hoon tall_input_hoon
+tall_zaptis_expression ::= zaptis tall_input_hoon
+tall_zapwut_expression ::= zapwut gap non_hoon_number tall_input_hoon
+
+// = runes
+tall_tisbar_expression ::= tisbar tall_input_spec tall_input_hoon
+tall_tiscol_expression ::= tiscol { tall_input_wing tall_input_hoon }+ tall_list_terminator tall_input_hoon
+tall_tiscom_expression ::= tiscom gap { SKIN TIS }? wing_expression tall_input_hoon
+tall_tisdot_expression ::= tisdot tall_input_wing tall_input_hoon tall_input_hoon
+tall_tisfas_expression ::= tisfas tall_input_spec tall_input_hoon tall_input_hoon
+tall_tisgal_expression ::= tisgal tall_input_hoon tall_input_hoon
+tall_tisgar_expression ::= tisgar tall_input_hoon tall_input_hoon
+tall_tishep_expression ::= tishep tall_input_hoon tall_input_hoon
+tall_tisket_expression ::= tisket tall_input_spec tall_input_wing tall_input_hoon tall_input_hoon
+tall_tislus_expression ::= tislus tall_input_hoon tall_input_hoon
+tall_tismic_expression ::= tismic tall_input_spec tall_input_hoon tall_input_hoon
+tall_tissig_expression ::= tissig tall_input_hoon { tall_input_hoon }+ tall_list_terminator
+tall_tistar_expression ::= tistar gap (irregular_buctis_1_expression | SKIN) tall_input_hoon tall_input_hoon
+tall_tiswut_expression ::= tiswut tall_input_wing tall_input_hoon tall_input_hoon tall_input_hoon
+
+// ? runes
+tall_wutbar_expression ::= wutbar { tall_input_hoon }+ tall_list_terminator
+tall_wutcol_expression ::= wutcol tall_input_hoon tall_input_hoon tall_input_hoon
+tall_wutdot_expression ::= wutdot tall_input_hoon tall_input_hoon tall_input_hoon
+tall_wutgal_expression ::= wutgal tall_input_hoon tall_input_hoon
+tall_wutgar_expression ::= wutgar tall_input_hoon tall_input_hoon
+tall_wuthep_expression ::= wuthep tall_input_switch { tall_input_spec tall_input_hoon }+ tall_list_terminator
+tall_wutket_expression ::= wutket tall_input_hoon tall_input_hoon tall_input_hoon
+tall_wutlus_expression ::= wutlus
+                           tall_input_switch tall_input_hoon
+                           { tall_input_spec tall_input_hoon }+
+                           tall_list_terminator
+tall_wutpam_expression ::= wutpam { tall_input_hoon }+ tall_list_terminator
+tall_wutpat_expression ::= wutpat tall_input_wing tall_input_hoon tall_input_hoon
+tall_wutsig_expression ::= wutsig tall_input_hoon tall_input_hoon tall_input_hoon
+tall_wuttis_expression ::= wuttis tall_input_spec tall_input_hoon
+tall_wutzap_expression ::= wutzap tall_input_hoon
+
+// | runes
+tall_barbuc_expression ::= barbuc
+                           (
+                               { { tall_input_skin }+ tall_list_terminator } |
+                               { gap <<bracketed <<list_one_or_more SKIN ACE>>>> }
+                           )
+                           tall_input_spec
+tall_barcab_expression ::= barcab tall_input_spec { tall_input_arm }* tall_core_terminator
+tall_barcen_expression ::= barcen { tall_input_arm }* tall_core_terminator
+tall_barcol_expression ::= barcol tall_input_hoon tall_input_hoon
+tall_bardot_expression ::= bardot tall_input_hoon
+tall_barhep_expression ::= barhep tall_input_hoon
+tall_barket_expression ::= barket tall_input_hoon { tall_input_arm }* tall_core_terminator
+tall_barpat_expression ::= barpat { tall_input_arm }* tall_core_terminator
+tall_barsig_expression ::= barsig tall_input_spec tall_input_hoon
+tall_bartar_expression ::= bartar tall_input_spec tall_input_hoon
+tall_bartis_expression ::= bartis tall_input_spec tall_input_hoon
+tall_barwut_expression ::= barwut tall_input_hoon
+
+arm_expression ::= lusbar_expression | lusbuc_expression | luslus_expression | lustar_expression {extends=tall_hoon_expression}
+lusbar_expression ::= lusbar tall_input_term {extends=arm_expression}
+lusbuc_expression ::= lusbuc tall_input_skin tall_input_spec {extends=arm_expression}
+luslus_expression ::= luslus { gap (SKIN | BUC) } tall_input_hoon {extends=arm_expression}
+lustar_expression ::= lustar { tall_input_skin tall_input_hoon }+ {extends=arm_expression}
+
+// : runes
+tall_colcab_expression ::= colcab tall_input_hoon tall_input_hoon
+tall_colhep_expression ::= colhep tall_input_hoon tall_input_hoon
+tall_colket_expression ::= colket tall_input_hoon tall_input_hoon tall_input_hoon tall_input_hoon
+tall_collus_expression ::= collus tall_input_hoon tall_input_hoon tall_input_hoon
+tall_colsig_expression ::= colsig { tall_input_hoon }+ tall_list_terminator
+tall_coltar_expression ::= coltar { tall_input_hoon }+ tall_list_terminator
+
+// % runes
+tall_cencab_expression ::= cencab tall_input_wing { tall_input_wing tall_input_hoon }+ tall_list_terminator
+tall_cencol_expression ::= cencol tall_input_hoon { tall_input_hoon }+ tall_list_terminator
+tall_cendot_expression ::= cendot tall_input_hoon tall_input_hoon
+tall_cenhep_expression ::= cenhep tall_input_hoon tall_input_hoon
+tall_cenket_expression ::= cenket tall_input_hoon tall_input_hoon tall_input_hoon tall_input_hoon
+tall_cenlus_expression ::= cenlus tall_input_hoon tall_input_hoon tall_input_hoon
+tall_censig_expression ::= censig tall_input_wing tall_input_hoon tall_input_hoon
+tall_centar_expression ::= centar
+                           tall_input_wing
+                           tall_input_hoon
+                           { tall_input_wing tall_input_hoon }+
+                           tall_list_terminator
+tall_centis_expression ::= centis tall_input_wing { tall_input_wing tall_input_hoon }+ tall_list_terminator
+
+// ^ runes
+tall_ketbar_expression ::= ketbar tall_input_hoon
+tall_ketcol_expression ::= ketcol tall_input_spec
+tall_ketdot_expression ::= ketdot tall_input_hoon tall_input_hoon
+tall_kethep_expression ::= kethep tall_input_spec tall_input_hoon
+tall_ketlus_expression ::= ketlus tall_input_hoon tall_input_hoon
+tall_ketpam_expression ::= ketpam tall_input_hoon
+tall_ketsig_expression ::= ketsig tall_input_hoon
+tall_kettar_expression ::= kettar tall_input_spec
+tall_kettis_expression ::= kettis tall_input_spec tall_input_hoon
+tall_ketwut_expression ::= ketwut tall_input_hoon
+
+// $ runes
+tall_bucbar_expression ::= bucbar tall_input_spec tall_input_hoon
+tall_buccab_expression ::= buccab tall_input_hoon
+tall_buccen_expression ::= buccen { tall_input_spec }+ tall_list_terminator
+tall_buccol_expression ::= buccol { tall_input_spec }+ tall_list_terminator
+tall_bucgal_expression ::= bucgal tall_input_spec tall_input_spec
+tall_bucgar_expression ::= bucgar tall_input_spec tall_input_spec
+tall_buchep_expression ::= buchep tall_input_spec tall_input_spec
+tall_bucket_expression ::= bucket tall_input_spec tall_input_spec
+tall_bucpam_expression ::= bucpam tall_input_spec tall_input_hoon
+tall_bucsig_expression ::= bucsig tall_input_hoon tall_input_spec
+tall_bucpat_expression ::= bucpat tall_input_spec tall_input_spec
+tall_buctis_expression ::= buctis tall_input_skin tall_input_spec
+tall_bucwut_expression ::= bucwut { tall_input_spec }+ tall_list_terminator
+
+// ; runes
+tall_miccol_expression ::= miccol tall_input_hoon { tall_input_hoon }+ tall_list_terminator
+tall_micfas_expression ::= micfas tall_input_hoon
+tall_micgal_expression ::= micgal tall_input_spec tall_input_hoon tall_input_hoon tall_input_hoon
+tall_miclus_expression ::= miclus tall_input_hoon
+tall_micmic_expression ::= micmic tall_input_spec tall_input_hoon
+tall_micsig_expression ::= micsig tall_input_hoon { tall_input_hoon }+ tall_list_terminator
+tall_mictar_expression ::= mictar tall_input_hoon
+tall_mictis_expression ::= mictis { tall_input_hoon }+ tall_list_terminator
+
+// ~ runes
+tall_sigbar_expression ::= sigbar tall_input_hoon tall_input_hoon
+tall_sigbuc_expression ::= sigbuc tall_input_term tall_input_hoon
+tall_sigcab_expression ::= sigcab tall_input_hoon tall_input_hoon
+tall_sigcen_expression ::= sigcen
+                           gap (CHUM | TERM)
+                           gap (SIG | wing_expression)
+                           gap (SIG | { tistis { tall_input_term tall_input_hoon }+ tall_list_terminator })
+                           tall_input_hoon
+tall_sigfas_expression ::= sigfas tall_input_term tall_input_hoon
+tall_siggal_expression ::= siggal tall_input_term { DOT (wide_expression | tall_input_hoon) }? tall_input_hoon
+tall_siggar_expression ::= siggar tall_input_term { DOT (wide_expression | tall_input_hoon) }? tall_input_hoon
+tall_siglus_expression ::= siglus tall_input_hoon
+tall_sigpam_expression ::= sigpam { gap GAR { GAR { GAR }? }? }? tall_input_hoon tall_input_hoon
+tall_sigtis_expression ::= sigtis tall_input_hoon tall_input_hoon
+tall_sigwut_expression ::= sigwut tall_input_hoon tall_input_hoon tall_input_hoon
+tall_sigzap_expression ::= sigzap tall_input_hoon tall_input_hoon
+
+// Generic helpers
+private tall_input_term ::= <<tall_input TERM>>
+private tall_input_skin ::= <<tall_input SKIN>>
+private tall_input_wing ::= <<tall_input wing_expression>>
+private tall_input_spec ::= <<tall_input spec_expression>>
+private tall_input_hoon ::= <<tall_input hoon_expression>>
+private tall_input_arm ::= <<tall_input arm_expression>>
+private tall_input_switch ::= <<tall_input switch_input>>
+private tall_core_terminator ::= <<tall_input hephep>>
+private tall_list_terminator ::= <<tall_input tistis>>
+
+private meta tall_input ::= gap <<p>>
+
+// =====================================================================================================================
 // Wide expressions
-wide-expression ::= wide-fixed-expression |
-                    wide-running-expression |
-                    wide-jogging-expression |
-                    wide-unique-expression {
-                        extends=regular-expression
-                    }
+// =====================================================================================================================
 
-wide-fixed-expression ::= wide-0-fixed |
-                          wide-1-fixed |
-                          wide-2-fixed |
-                          wide-3-fixed |
-                          wide-4-fixed {
-                              extends=wide-expression
-                          }
-private wide-0-fixed ::= '!!'
-private wide-1-fixed ::= wide-1-fixed-h | wide-1-fixed-s
-private wide-1-fixed-h ::= <<wide-1-fixed-template rune-1-fixed-h small-expression>>
-private wide-1-fixed-s ::= <<wide-1-fixed-template rune-1-fixed-s spec>>
-private wide-2-fixed ::= wide-2-fixed-hh |
-                         wide-2-fixed-sh |
-                         wide-2-fixed-ss |
-                         wide-2-fixed-th |
-                         wide-zapwut-expression |
-                         wide-tiscom-expression |
-                         wide-wuttis-expression |
-                         wide-bucsig-expression
-private wide-2-fixed-hh ::= <<wide-2-fixed-template rune-2-fixed-hh small-expression small-expression>>
-private wide-2-fixed-sh ::= <<wide-2-fixed-template rune-2-fixed-sh spec small-expression>>
-private wide-2-fixed-ss ::= <<wide-2-fixed-template rune-2-fixed-ss spec spec>>
-private wide-2-fixed-th ::= <<wide-2-fixed-template rune-2-fixed-th TERM small-expression>>
-private wide-zapwut-expression ::= <<wide-2-fixed-template '!?' NON_HOON_NUM small-expression>>
-private wide-tiscom-expression ::= <<wide-2-fixed-template '=,' (SKIN | irregular-tisgal) small-expression>>
-private wide-wuttis-expression ::= <<wide-2-fixed-template '?=' spec wing>>
-private wide-bucsig-expression ::= <<wide-2-fixed-template '$~' small-expression spec>>
-private wide-3-fixed ::= wide-3-fixed-hhh | wide-3-fixed-shh | wide-3-fixed-whh | wide-tistar-expression
-private wide-3-fixed-hhh ::= <<wide-3-fixed-template rune-3-fixed-hhh small-expression small-expression small-expression>>
-private wide-3-fixed-shh ::= <<wide-3-fixed-template rune-3-fixed-shh spec small-expression small-expression>>
-private wide-3-fixed-whh ::= <<wide-3-fixed-template rune-3-fixed-whh wing small-expression small-expression>>
-private wide-tistar-expression ::= <<wide-3-fixed-template '=*' (SKIN | irregular-kettis) small-expression small-expression>>
-private wide-4-fixed ::= wide-4-fixed-hhhh | wide-tisket-expression | wide-tiswut-expression | wide-micgal-expression
-private wide-4-fixed-hhhh ::= <<wide-4-fixed-template rune-4-fixed-hhhh small-expression small-expression small-expression small-expression>>
-private wide-tisket-expression ::= <<wide-4-fixed-template '=^' spec wing small-expression small-expression>>
-private wide-tiswut-expression ::= <<wide-4-fixed-template '=?' wing small-expression small-expression small-expression>>
-private wide-micgal-expression ::= <<wide-4-fixed-template ';<' spec small-expression small-expression small-expression>>
+// Need to split spec & wing expressions into parts because of single-symbol spec/wing expression precedence
+wide_expression ::= (wide_hoon_expression |
+                    irregular_hoon_expression |
+                    wide_sail_expression |
+                    long_wing_expression |
+                    advanced_wide_spec_expression |
+                    basic_wide_spec_expression |
+                    short_wing_expression |
+                    constant |
+                    literal)
+                    { (COL | KET) wide_expression }?
+                    {extends=hoon_expression}
 
-wide-running-expression ::= wide-0-running | wide-1-running {extends=wide-expression}
-private wide-0-running ::= wide-0-running-h | wide-0-running-s
-private wide-0-running-h ::= rune-0-running-h '(' <<list-one-or-more small-expression ' '>> ')'
-private wide-0-running-s ::= rune-0-running-s '(' <<list-one-or-more spec ' '>> ')'
-private wide-1-running ::= rune-1-running-hh '(' <<list-two-or-more small-expression ' '>> ')'
+specless_expression ::= (wide_hoon_expression |
+                    irregular_hoon_expression |
+                    wide_sail_expression |
+                    wing_expression |
+                    constant |
+                    literal)
+                    { (COL | KET) wide_expression }?
+                    {extends=hoon_expression}
 
-wide-jogging-expression ::= wide-1-jogging | wide-2-jogging {extends=wide-expression}
-private wide-1-jogging ::= wide-1-jogging-wwh | wide-wuthep-expression
-private wide-1-jogging-wwh ::= rune-1-jogging-wwh '('
-                               wing ' '
-                               <<list-one-or-more { wing ' ' small-expression } ', '>>
-                               ')'
-private wide-wuthep-expression ::= '?-(' wing ' ' <<list-one-or-more { spec ' ' small-expression } ', '>> ')'
-private wide-2-jogging ::= wide-wutlus-expression | wide-centar-expression
-private wide-wutlus-expression ::= '?+('
-                                   wing ' ' small-expression ' '
-                                   <<list-one-or-more { spec ' ' small-expression } ', '>>
-                                   ')'
-private wide-centar-expression ::= '%*('
-                                   wing ' ' small-expression ' '
-                                   <<list-one-or-more { wing ' ' small-expression } ', '>>
-                                   ')'
+//
+// Wide SAIL expressions
+//
 
-wide-unique-expression ::= wide-dotket-expression |
-                           wide-tiscol-expression |
-                           wide-barbuc-expression |
-                           wide-raw-hint-expression {
-                               extends=tall-expression
-                           }
-private wide-dotket-expression ::= '.^(' spec ' ' TERM ' ' PATH ')'
-private wide-tiscol-expression ::= '=:('
-                                   <<list-one-or-more { wing ' ' small-expression } ', '>>
-                                   small-expression
-                                   ')'
-private wide-barbuc-expression ::= '|$(' (SKIN | {'[' <<list-one-or-more SKIN ' '>> ']' }) ' ' spec ')'
-private wide-raw-hint-expression ::= ('~<' | '~>') '(' (TERM | { TERM '.' small-expression }) ' ' small-expression ')'
+wide_sail_expression ::= MIC
+                         <<list_one_or_more { SKIN { wide_sail_subexpression }? } COL>>
+                         ({ COL wide_sail_string } | MIC)
+                         {extends=wide_expression}
+wide_sail_subexpression ::= wide_sail_params_subexpression |
+                            wide_sail_dot_subexpression |
+                            wide_sail_fas_subexpression |
+                            wide_sail_hax_subexpression |
+                            wide_sail_pat_subexpression
+wide_sail_params_subexpression ::= PAL
+                                   { <<list_one_or_more wide_sail_param { COM ACE }>> }?
+                                   PAR
+                                   {extends=wide_sail_subexpression}
+wide_sail_dot_subexpression ::= DOT SKIN
+                                {
+                                    wide_sail_params_subexpression |
+                                    wide_sail_dot_subexpression |
+                                    wide_sail_fas_subexpression |
+                                    wide_sail_pat_subexpression
+                                }?
+                                {extends=wide_sail_subexpression}
+wide_sail_fas_subexpression ::= FAS SIMPLE_TAPE { wide_sail_params_subexpression }? {extends=wide_sail_subexpression}
+wide_sail_hax_subexpression ::= HAX SKIN
+                                {
+                                    wide_sail_params_subexpression |
+                                    wide_sail_dot_subexpression |
+                                    wide_sail_fas_subexpression |
+                                    wide_sail_pat_subexpression
+                                }?
+                                {extends=wide_sail_subexpression}
+wide_sail_pat_subexpression ::= PAT SIMPLE_TAPE { wide_sail_params_subexpression }? {extends=wide_sail_subexpression}
 
-private meta wide-1-fixed-template ::= <<rune>> '(' <<input>> ')'
-private meta wide-2-fixed-template ::= <<rune>> '(' <<input1>> ' ' <<input2>> ')'
-private meta wide-3-fixed-template ::= <<rune>> '(' <<input1>> ' ' <<input2>> ' ' <<input3>> ')'
-private meta wide-4-fixed-template ::= <<rune>> '(' <<input1>> ' ' <<input2>> ' ' <<input3>> ' ' <<input4>> ')'
+private wide_sail_param ::= sail_skin ACE (irregular_hoon_expression | wide_hoon_expression | SIMPLE_TAPE | SKIN)
+private wide_sail_string ::= SIMPLE_CORD | SIMPLE_TAPE | MULTILINE_CORD | MULTILINE_TAPE
 
+//
+// Wing expressions
+//
+
+wing_expression ::= wing_fragment { DOT wing_fragment }* {extends=wide_expression}
+
+
+long_wing_expression ::= wing_fragment { DOT wing_fragment }+ {extends=wide_expression}
+short_wing_expression ::= wing_fragment {extends=wide_expression}
+
+private wing_fragment ::= skin_as_wing_or_spec | tree_address | lark | COM | DOT
+
+//
+// Wide spec expressions
+//
+
+wide_spec_expression ::= irregular_buctis_2_expression | major_wide_spec_expression {extends=wide_expression}
+major_wide_spec_expression ::= multi_char_specs | single_char_specs {extends=wide_spec_expression}
+
+// Wide expression convenience helpers
+advanced_wide_spec_expression ::= irregular_buctis_2_expression | multi_char_specs {extends=wide_expression}
+basic_wide_spec_expression ::= single_char_specs {extends=wide_expression}
+
+private multi_char_specs ::= irregular_buccab_expression |
+                             irregular_buccol_expression |
+                             irregular_buctis_1_expression |
+                             irregular_bucwut_expression |
+                             wide_buc_expression |
+                             wide_func_expression |
+                             skin_as_wing_or_spec |
+                             constant |
+                             AURA |
+                             TERM |
+                             LOOBEAN
+private single_char_specs ::= KET | PAT | SIG | TAR | WUT
+
+//
+// Wide Hoon expressions
+//
+
+wide_hoon_expression ::= wide_dot_expression |
+                         wide_zap_expression |
+                         wide_tis_expression |
+                         wide_wut_expression |
+                         wide_bar_expression |
+                         wide_col_expression |
+                         wide_cen_expression |
+                         wide_ket_expression |
+                         wide_mic_expression |
+                         wide_sig_expression
+                         {extends=wide_expression}
+
+// Rune groupings for convenience
+private wide_dot_expression ::= wide_dotket_expression |
+                                wide_dotlus_expression |
+                                wide_dottar_expression |
+                                wide_dottis_expression |
+                                wide_dotwut_expression
+private wide_zap_expression ::= wide_zapcol_expression |
+                                wide_zapcom_expression |
+                                wide_zapdot_expression |
+                                wide_zapgal_expression |
+                                wide_zapgar_expression |
+                                wide_zapmic_expression |
+                                wide_zappat_expression |
+                                wide_zaptis_expression |
+                                wide_zapwut_expression |
+                                wide_zapzap_expression
+private wide_tis_expression ::= wide_tisbar_expression |
+                                wide_tiscol_expression |
+                                wide_tiscom_expression |
+                                wide_tisdot_expression |
+                                wide_tisfas_expression |
+                                wide_tisgal_expression |
+                                wide_tisgar_expression |
+                                wide_tishep_expression |
+                                wide_tisket_expression |
+                                wide_tislus_expression |
+                                wide_tismic_expression |
+                                wide_tissig_expression |
+                                wide_tistar_expression |
+                                wide_tiswut_expression
+private wide_wut_expression ::= wide_wutbar_expression |
+                                wide_wutcol_expression |
+                                wide_wutdot_expression |
+                                wide_wutgal_expression |
+                                wide_wutgar_expression |
+                                wide_wuthep_expression |
+                                wide_wutket_expression |
+                                wide_wutlus_expression |
+                                wide_wutpam_expression |
+                                wide_wutpat_expression |
+                                wide_wutsig_expression |
+                                wide_wuttis_expression |
+                                wide_wutzap_expression
+private wide_bar_expression ::= wide_barbuc_expression |
+                                wide_barcol_expression |
+                                wide_bardot_expression |
+                                wide_barhep_expression |
+                                wide_barsig_expression |
+                                wide_bartar_expression |
+                                wide_bartis_expression |
+                                wide_barwut_expression
+private wide_col_expression ::= wide_colcab_expression |
+                                wide_colhep_expression |
+                                wide_colket_expression |
+                                wide_collus_expression |
+                                wide_colsig_expression |
+                                wide_coltar_expression
+private wide_cen_expression ::= wide_cencab_expression |
+                                wide_cencol_expression |
+                                wide_cendot_expression |
+                                wide_cenhep_expression |
+                                wide_cenket_expression |
+                                wide_cenlus_expression |
+                                wide_censig_expression |
+                                wide_centar_expression |
+                                wide_centis_expression
+private wide_ket_expression ::= wide_ketbar_expression |
+                                wide_ketcol_expression |
+                                wide_ketdot_expression |
+                                wide_kethep_expression |
+                                wide_ketlus_expression |
+                                wide_ketpam_expression |
+                                wide_ketsig_expression |
+                                wide_kettar_expression |
+                                wide_kettis_expression |
+                                wide_ketwut_expression
+private wide_buc_expression ::= wide_bucbar_expression |
+                                wide_buccab_expression |
+                                wide_buccen_expression |
+                                wide_buccol_expression |
+                                wide_bucgal_expression |
+                                wide_bucgar_expression |
+                                wide_buchep_expression |
+                                wide_bucmic_expression |
+                                wide_bucket_expression |
+                                wide_bucpam_expression |
+                                wide_bucsig_expression |
+                                wide_bucpat_expression |
+                                wide_buctis_expression |
+                                wide_bucwut_expression
+private wide_mic_expression ::= wide_miccol_expression |
+                                wide_micfas_expression |
+                                wide_micgal_expression |
+                                wide_miclus_expression |
+                                wide_micmic_expression |
+                                wide_micsig_expression |
+                                wide_mictar_expression |
+                                wide_mictis_expression
+private wide_sig_expression ::= wide_sigbar_expression |
+                                wide_sigbuc_expression |
+                                wide_sigcab_expression |
+                                wide_sigfas_expression |
+                                wide_siggal_expression |
+                                wide_siggar_expression |
+                                wide_siglus_expression |
+                                wide_sigpam_expression |
+                                wide_sigtis_expression |
+                                wide_sigwut_expression |
+                                wide_sigzap_expression
+
+private wide_func_expression ::= wide_cencol_expression |
+                                 wide_cenhep_expression |
+                                 wide_cenket_expression |
+                                 wide_cenlus_expression |
+                                 wide_censig_expression |
+                                 irregular_cencol_expression |
+                                 irregular_censig_expression
+
+// Rune expressions
+// . runes
+wide_dotket_expression ::= dotket <<paranthesized { wide_spec_expression ACE TERM ACE wide_expression }>>
+wide_dotlus_expression ::= <<wide_1_fixed_template dotlus wide_expression>>
+wide_dottar_expression ::= <<wide_2_fixed_template dottar wide_expression wide_expression>>
+wide_dottis_expression ::= <<wide_2_fixed_template dottis wide_expression wide_expression>>
+wide_dotwut_expression ::= <<wide_1_fixed_template dotwut wide_expression>>
+
+// ! runes
+wide_zapcol_expression ::= <<wide_1_fixed_template zapcol wide_expression>>
+wide_zapcom_expression ::= <<wide_2_fixed_template zapcom wide_expression wide_expression>>
+wide_zapdot_expression ::= <<wide_1_fixed_template zapdot wide_expression>>
+wide_zapgal_expression ::= <<wide_2_fixed_template zapgal wide_spec_expression wide_expression>>
+wide_zapgar_expression ::= <<wide_1_fixed_template zapgar wide_expression>>
+wide_zapmic_expression ::= <<wide_2_fixed_template zapmic wide_expression wide_expression>>
+wide_zappat_expression ::= <<wide_3_fixed_template zappat wing_expression wide_expression wide_expression>>
+wide_zaptis_expression ::= <<wide_1_fixed_template zaptis wide_expression>>
+wide_zapwut_expression ::= <<wide_2_fixed_template zapwut non_hoon_number wide_expression>>
+wide_zapzap_expression ::= zapzap
+
+// = runes
+wide_tisbar_expression ::= <<wide_2_fixed_template tisbar wide_spec_expression wide_expression>>
+wide_tiscol_expression ::= tiscol PAL
+                           <<list_one_or_more { wing_expression ACE wide_expression } { COM ACE }>>
+                           wide_expression
+                           PAR
+wide_tiscom_expression ::= tiscom PAL { SKIN TIS }? wing_expression ACE wide_expression PAR
+wide_tisdot_expression ::= <<wide_3_fixed_template tisdot wing_expression wide_expression wide_expression>>
+wide_tisfas_expression ::= <<wide_3_fixed_template tisfas wide_spec_expression wide_expression wide_expression>>
+wide_tisgal_expression ::= <<wide_2_fixed_template tisgal wide_expression wide_expression>>
+wide_tisgar_expression ::= <<wide_2_fixed_template tisgar wide_expression wide_expression>>
+wide_tishep_expression ::= <<wide_2_fixed_template tishep wide_expression wide_expression>>
+wide_tisket_expression ::= <<wide_4_fixed_template tisket wide_spec_expression wing_expression wide_expression wide_expression>>
+wide_tislus_expression ::= <<wide_2_fixed_template tislus wide_expression wide_expression>>
+wide_tismic_expression ::= <<wide_3_fixed_template tismic wide_spec_expression wide_expression wide_expression>>
+wide_tissig_expression ::= tissig <<paranthesized <<list_two_or_more wide_expression ACE>>>>
+wide_tistar_expression ::= <<wide_3_fixed_template tistar (irregular_buctis_1_expression | SKIN) wide_expression wide_expression>>
+wide_tiswut_expression ::= <<wide_4_fixed_template tiswut wing_expression wide_expression wide_expression wide_expression>>
+
+// ? runes
+wide_wutbar_expression ::= wutbar <<paranthesized <<list_one_or_more wide_expression ACE>>>>
+wide_wutcol_expression ::= <<wide_3_fixed_template wutcol wide_expression wide_expression wide_expression>>
+wide_wutdot_expression ::= <<wide_3_fixed_template wutdot wide_expression wide_expression wide_expression>>
+wide_wutgal_expression ::= <<wide_2_fixed_template wutgal wide_expression wide_expression>>
+wide_wutgar_expression ::= <<wide_2_fixed_template wutgar wide_expression wide_expression>>
+wide_wuthep_expression ::= wuthep PAL
+                           switch_input ACE
+                           <<list_one_or_more { wide_spec_expression ACE wide_expression } { COM ACE }>>
+                           PAR
+wide_wutket_expression ::= <<wide_3_fixed_template wutket wing_expression wide_expression wide_expression>>
+wide_wutlus_expression ::= wutlus PAL
+                           switch_input ACE
+                           wide_expression ACE
+                           <<list_one_or_more { wide_spec_expression ACE wide_expression } { COM ACE }>>
+                           PAR
+wide_wutpam_expression ::= wutpam <<paranthesized <<list_one_or_more wide_expression ACE>>>>
+wide_wutpat_expression ::= <<wide_3_fixed_template wutpat wing_expression wide_expression wide_expression>>
+wide_wutsig_expression ::= <<wide_3_fixed_template wutsig wide_expression wide_expression wide_expression>>
+wide_wuttis_expression ::= <<wide_2_fixed_template wuttis wide_spec_expression wide_expression>>
+wide_wutzap_expression ::= <<wide_1_fixed_template wutzap wide_expression>>
+
+// | runes
+wide_barbuc_expression ::= barbuc PAL
+                           (<<bracketed <<list_one_or_more SKIN ACE>>>> | SKIN)
+                           ACE wide_spec_expression
+                           PAR
+wide_barcol_expression ::= <<wide_2_fixed_template barcol wide_expression wide_expression>>
+wide_bardot_expression ::= <<wide_1_fixed_template bardot wide_expression>>
+wide_barhep_expression ::= <<wide_1_fixed_template barhep wide_expression>>
+wide_barsig_expression ::= <<wide_2_fixed_template barsig wide_spec_expression wide_expression>>
+wide_bartar_expression ::= <<wide_2_fixed_template bartar wide_spec_expression wide_expression>>
+wide_bartis_expression ::= <<wide_2_fixed_template bartis wide_spec_expression wide_expression>>
+wide_barwut_expression ::= <<wide_1_fixed_template barwut wide_expression>>
+
+// : runes
+wide_colcab_expression ::= <<wide_2_fixed_template colcab wide_expression wide_expression>>
+wide_colhep_expression ::= <<wide_2_fixed_template colhep wide_expression wide_expression>>
+wide_colket_expression ::= <<wide_4_fixed_template colket wide_expression wide_expression wide_expression wide_expression>>
+wide_collus_expression ::= <<wide_3_fixed_template collus wide_expression wide_expression wide_expression>>
+wide_colsig_expression ::= colsig <<paranthesized <<list_one_or_more wide_expression ACE>>>>
+wide_coltar_expression ::= coltar <<paranthesized <<list_one_or_more wide_expression ACE>>>>
+
+// % runes
+wide_cencab_expression ::= cencab PAL
+                           wing_expression ACE
+                           <<list_one_or_more { wing_expression ACE wide_expression } { COM ACE }>>
+                           PAR
+wide_cencol_expression ::= cencol <<paranthesized <<list_two_or_more wide_expression ACE>>>>
+wide_cendot_expression ::= <<wide_2_fixed_template cendot wide_expression wide_expression>>
+wide_cenhep_expression ::= <<wide_2_fixed_template cenhep wide_expression wide_expression>>
+wide_cenket_expression ::= <<wide_4_fixed_template cenket wide_expression wide_expression wide_expression wide_expression>>
+wide_cenlus_expression ::= <<wide_3_fixed_template cenlus wide_expression wide_expression wide_expression>>
+wide_censig_expression ::= <<wide_3_fixed_template censig wing_expression wide_expression wide_expression>>
+wide_centar_expression ::= centar PAL
+                           wing_expression ACE wide_expression ACE
+                           <<list_one_or_more { wing_expression ACE wide_expression } { COM ACE }>>
+                           PAR
+wide_centis_expression ::= centis PAL
+                           wing_expression ACE
+                           <<list_one_or_more { wing_expression ACE wide_expression } { COM ACE }>>
+                           PAR
+
+// ^ runes
+wide_ketbar_expression ::= <<wide_1_fixed_template ketbar wide_expression>>
+wide_ketcol_expression ::= <<wide_1_fixed_template ketcol wide_spec_expression>>
+wide_ketdot_expression ::= <<wide_2_fixed_template ketdot wide_expression wide_expression>>
+wide_kethep_expression ::= <<wide_2_fixed_template kethep wide_spec_expression wide_expression>>
+wide_ketlus_expression ::= <<wide_2_fixed_template ketlus wide_expression wide_expression>>
+wide_ketpam_expression ::= <<wide_1_fixed_template ketpam wide_expression>>
+wide_ketsig_expression ::= <<wide_1_fixed_template ketsig wide_expression>>
+wide_kettar_expression ::= <<wide_1_fixed_template kettar wide_expression>>
+wide_kettis_expression ::= <<wide_2_fixed_template kettis wide_spec_expression wide_expression>>
+wide_ketwut_expression ::= <<wide_1_fixed_template ketwut wide_expression>>
+
+// $ runes
+wide_bucbar_expression ::= <<wide_2_fixed_template bucbar wide_spec_expression wide_expression>>
+wide_buccab_expression ::= <<wide_1_fixed_template buccab wide_expression>>
+wide_buccen_expression ::= buccen <<paranthesized <<list_one_or_more wide_spec_expression ACE>>>>
+wide_buccol_expression ::= buccol <<paranthesized <<list_one_or_more wide_spec_expression ACE>>>>
+wide_bucgal_expression ::= <<wide_2_fixed_template bucgal wide_spec_expression wide_spec_expression>>
+wide_bucgar_expression ::= <<wide_2_fixed_template bucgar wide_spec_expression wide_spec_expression>>
+wide_buchep_expression ::= <<wide_2_fixed_template buchep wide_spec_expression wide_spec_expression>>
+wide_bucket_expression ::= <<wide_2_fixed_template bucket wide_spec_expression wide_spec_expression>>
+wide_bucmic_expression ::= <<wide_1_fixed_template bucmic wide_buc_expression>>
+wide_bucpam_expression ::= <<wide_2_fixed_template bucpam wide_spec_expression wide_expression>>
+wide_bucsig_expression ::= <<wide_2_fixed_template bucsig wide_expression wide_spec_expression>>
+wide_bucpat_expression ::= <<wide_2_fixed_template bucpat wide_spec_expression wide_spec_expression>>
+wide_buctis_expression ::= <<wide_2_fixed_template buctis SKIN wide_spec_expression>>
+wide_bucwut_expression ::= bucwut <<paranthesized <<list_one_or_more wide_spec_expression ACE>>>>
+
+// ; runes
+wide_miccol_expression ::= miccol <<paranthesized <<list_two_or_more wide_expression ACE>>>>
+wide_micfas_expression ::= <<wide_1_fixed_template micfas wide_expression>>
+wide_micgal_expression ::= <<wide_4_fixed_template micgal wide_spec_expression wide_expression wide_expression wide_expression>>
+wide_miclus_expression ::= <<wide_1_fixed_template miclus wide_expression>>
+wide_micmic_expression ::= <<wide_2_fixed_template micmic wide_spec_expression wide_expression>>
+wide_micsig_expression ::= micsig <<paranthesized <<list_two_or_more wide_expression ACE>>>>
+wide_mictar_expression ::= <<wide_1_fixed_template mictar wide_expression>>
+wide_mictis_expression ::= mictis <<paranthesized <<list_one_or_more wide_expression ACE>>>>
+
+// ~ runes
+wide_sigbar_expression ::= <<wide_2_fixed_template sigbar wide_expression wide_expression>>
+wide_sigbuc_expression ::= <<wide_2_fixed_template sigbuc TERM wide_expression>>
+wide_sigcab_expression ::= <<wide_2_fixed_template sigcab wide_expression wide_expression>>
+wide_sigfas_expression ::= <<wide_2_fixed_template sigfas TERM wide_expression>>
+wide_siggal_expression ::= siggal <<paranthesized { TERM { DOT wide_expression }? ACE wide_expression }>>
+wide_siggar_expression ::= siggar <<paranthesized { TERM { DOT wide_expression }? ACE wide_expression }>>
+wide_siglus_expression ::= <<wide_1_fixed_template siglus wide_expression>>
+wide_sigpam_expression ::= sigpam PAL { GAR { GAR { GAR }? }? ACE }? wide_expression ACE wide_expression PAR
+wide_sigtis_expression ::= <<wide_2_fixed_template sigtis wide_expression wide_expression>>
+wide_sigwut_expression ::= <<wide_3_fixed_template sigwut wide_expression wide_expression wide_expression>>
+wide_sigzap_expression ::= <<wide_2_fixed_template sigzap wide_expression wide_expression>>
+
+// Generic helpers
+private meta wide_1_fixed_template ::= <<rune>> <<paranthesized <<input>>>>
+private meta wide_2_fixed_template ::= <<rune>> <<paranthesized { <<input1>> ACE <<input2>> }>>
+private meta wide_3_fixed_template ::= <<rune>> <<paranthesized { <<input1>> ACE <<input2>> ACE <<input3>> }>>
+private meta wide_4_fixed_template ::= <<rune>> <<paranthesized { <<input1>> ACE <<input2>> ACE <<input3>> ACE <<input4>> }>>
+
+//
 // Irregular expressions
-irregular-expression ::= irregular-rune | irregular-other
+//
 
-irregular-rune ::= irregular-dotlus |
-                   irregular-dottis |
-                   irregular-tisgal |
-                   irregular-wutbar |
-                   irregular-wutpam |
-                   irregular-wutzap |
-                   irregular-colhep |
-                   irregular-colsig |
-                   irregular-coltar |
-                   irregular-cencol |
-                   irregular-censig |
-                   irregular-centis |
-                   irregular-ketcol |
-                   irregular-kethep |
-                   irregular-kettar |
-                   irregular-kettis |
-                   irregular-buccab |
-                   irregular-buccol |
-                   irregular-bucwut |
-                   irregular-miccol
-irregular-dotlus ::= '+(' small-expression ')' {extends=irregular-rune}
-irregular-dottis ::= '=(' small-expression ' ' small-expression ')' {extends=irregular-rune}
-irregular-tisgal ::= (SKIN | wing) ':' small-expression
-irregular-wutbar ::= '|(' <<list-one-or-more small-expression ' '>> ')' {extends=irregular-rune}
-irregular-wutpam ::= '&(' <<list-one-or-more small-expression ' '>> ')' {extends=irregular-rune}
-irregular-wutzap ::= '!' small-expression {extends=irregular-rune}
-irregular-colhep ::= smaller-expression '^' small-expression
-irregular-colsig ::= '~[' <<list-one-or-more small-expression ' '>> ']' {extends=irregular-rune}
-irregular-coltar ::= '[' <<list-one-or-more small-expression ' '>> ']' {extends=irregular-rune}
-irregular-cencol ::= '(' <<list-two-or-more small-expression ' '>> ')' {extends=irregular-rune}
-irregular-censig ::= '~(' wing ' ' <<list-two-or-more small-expression ' '>> ')' {extends=irregular-rune}
-irregular-centis ::= wing '(' <<list-one-or-more { wing ' ' small-expression } ', '>> ')' {extends=irregular-rune}
-irregular-ketcol ::= ',' spec {extends=irregular-rune}
-irregular-kethep ::= '`' spec '`' small-expression {extends=irregular-rune}
-irregular-kettar ::= '*' spec {extends=irregular-rune}
-irregular-kettis ::= spec '=' small-expression {extends=irregular-rune}
-irregular-buccab ::= '_' small-expression {extends=irregular-rune}
-irregular-buccol ::= '[' <<list-one-or-more spec ' '>> ']' {extends=irregular-rune}
-irregular-bucwut ::= '?(' <<list-one-or-more spec ' '>> ')' {extends=irregular-rune}
-irregular-miccol ::= ':(' <<list-two-or-more small-expression ' '>> ')' {extends=irregular-rune}
+irregular_hoon_expression ::= irregular_tang_expression |
+                              irregular_tape_expression |
+                              irregular_list_expression |
+                              irregular_cask_expression |
+                              irregular_rune_expression |
+                              irregular_unit_expression
+                              {extends=wide_expression}
 
-irregular-other ::= irregular-list |
-                    irregular-cask |
-                    irregular-unit
-irregular-list ::= '[' <<list-one-or-more small-expression ' '>> ']~' {extends=irregular-other}
-irregular-cask ::= SKIN ('+' | '/') small-expression {extends=irregular-other}
-irregular-unit ::=  '`' small-expression {extends=irregular-other}
+// Need kettis (^=) to have top priority for cases where assigning multiple faces at once
+private irregular_rune_expression ::= irregular_kettis_expression |
+                                      irregular_dotlus_expression |
+                                      irregular_dottis_expression |
+                                      irregular_wutbar_expression |
+                                      irregular_wutpam_expression |
+                                      irregular_wutzap_expression |
+                                      irregular_colsig_expression |
+                                      irregular_coltar_expression |
+                                      irregular_cencol_expression |
+                                      irregular_censig_expression |
+                                      irregular_centis_expression |
+                                      irregular_ketcol_expression |
+                                      irregular_kethep_expression |
+                                      irregular_kettar_expression |
+                                      irregular_buccab_expression |
+                                      irregular_buccol_expression |
+                                      irregular_buctis_1_expression |
+                                      irregular_buctis_2_expression |
+                                      irregular_bucwut_expression |
+                                      irregular_miccol_expression
 
-// SAIL expressions
-sail-expression ::= tall-sail-expression | wide-sail-expression
+// Irregular runes
+irregular_dotlus_expression ::= LUS <<paranthesized wide_expression>>
+irregular_dottis_expression ::= TIS <<paranthesized { wide_expression ACE wide_expression }>>
+irregular_wutbar_expression ::= BAR <<paranthesized { <<list_one_or_more wide_expression ACE>> }>>
+irregular_wutpam_expression ::= PAM <<paranthesized { <<list_one_or_more wide_expression ACE>> }>>
+irregular_wutzap_expression ::= ZAP wide_expression
+irregular_colsig_expression ::= SIG <<bracketed <<list_one_or_more wide_expression ACE>>>>
+irregular_coltar_expression ::= <<bracketed <<list_one_or_more specless_expression ACE>>>>
+irregular_cencol_expression ::= <<paranthesized <<list_one_or_more wide_expression ACE>>>>
+irregular_censig_expression ::= SIG <<paranthesized { wing_expression ACE <<list_two_or_more wide_expression ACE>> }>>
+irregular_centis_expression ::= wing_expression PAL
+                                <<list_one_or_more { wing_expression ACE wide_expression } { COM ACE }>>
+                                PAR
+irregular_ketcol_expression ::= COM wide_spec_expression
+irregular_kethep_expression ::= TIC (irregular_ketcol_expression | wide_spec_expression) TIC wide_expression
+irregular_kettar_expression ::= TAR wide_spec_expression
+irregular_kettis_expression ::= (name_block | SKIN) TIS specless_expression
+irregular_buccab_expression ::= CAB wide_expression
+irregular_buccol_expression ::= <<bracketed <<list_one_or_more wide_spec_expression ACE>>>>
+irregular_buctis_1_expression ::= SKIN TIS major_wide_spec_expression
+irregular_buctis_2_expression ::= TIS major_wide_spec_expression
+irregular_bucwut_expression ::= WUT <<paranthesized <<list_one_or_more wide_spec_expression ACE>>>>
+irregular_miccol_expression ::= COL <<paranthesized <<list_two_or_more wide_expression ACE>>>>
 
-sail-init ::= ';' SKIN
+irregular_cask_expression ::= (unsigned_decimal | SKIN | BAR | BUC | PAM)
+                              (FAS | LUS)
+                              wide_expression
+                              {extends=irregular_hoon_expression}
+irregular_list_expression ::= <<bracketed <<list_one_or_more wide_expression ACE>>>>
+                              SIG
+                              {extends=irregular_hoon_expression}
+irregular_tape_expression ::= GAL <<list_one_or_more wide_expression ACE>> GAR {extends=irregular_hoon_expression}
+irregular_tang_expression ::= GAR <<list_one_or_more wide_expression ACE>> GAL {extends=irregular_hoon_expression}
+irregular_unit_expression ::= TIC wide_expression {extends=irregular_hoon_expression}
 
-tall-sail-expression ::= sail-init (tall-sail-params-only | tall-sail-subexpressions)
-private tall-sail-params-only ::= { gap tall-sail-param }+ ';'
-private tall-sail-subexpressions ::= { gap tall-sail-param }* { gap sail-expression }+ tall-list-terminator
-tall-sail-param ::= '=' SKIN gap TAPE
+//
+// Specialty rune inputs
+//
 
-wide-sail-expression ::= ';' <<list-one-or-more wide-sail-subexpression ':'>> (wide-sail-text | ';')
-wide-sail-subexpression ::= SKIN { sail-subexpression | wide-sail-params }?
-sail-subexpression ::= sail-subexpression-dot | sail-subexpression-fas | sail-subexpression-hax | sail-subexpression-pat
-sail-subexpression-dot ::= '.' SKIN
-                           {
-                               wide-sail-params |
-                               sail-subexpression-dot |
-                               sail-subexpression-fas |
-                               sail-subexpression-pat
-                           }?
-                           {
-                               extends=sail-subexpression
-                           }
-sail-subexpression-fas ::= '/' TAPE { wide-sail-params }? {extends=sail-subexpression}
-sail-subexpression-hax ::= '#' SKIN
-                           {
-                               wide-sail-params |
-                               sail-subexpression-dot |
-                               sail-subexpression-fas |
-                               sail-subexpression-pat
-                           }?
-                           {
-                               extends=sail-subexpression
-                           }
-sail-subexpression-pat ::= '@' TAPE { wide-sail-params }? {extends=sail-subexpression}
-wide-sail-params ::= '(' { <<list-one-or-more { SKIN ' ' TAPE } ', '>> }? ')'
-wide-sail-text ::= ':' (CORD | TAPE)
+private sail_rune_expression ::= tall_miclus_expression |
+                                 tall_micfas_expression |
+                                 tall_mictar_expression |
+                                 tall_mictis_expression |
+                                 wide_miclus_expression |
+                                 wide_micfas_expression |
+                                 wide_mictar_expression |
+                                 wide_mictis_expression
 
+switch_input ::= irregular_coltar_expression | wide_func_expression | wide_zapgal_expression | wing_expression
 
-// Rune groupings
-private rune-1-fixed-h ::= '.+' | '.?' | '!:' | '!.' | '!>' | '!=' | '?!' | '|.' | '|-' | '|?' | '^|' | '^&' | '^~' |
-                           '^?' | '$_' | ';+' | ';/' | ';*' | '~+'
-private rune-1-fixed-s ::= '^:' | '^*'
+name_block ::= <<bracketed <<list_one_or_more name_block_component ACE>>>>
+private name_block_component ::= name_block |
+                                 irregular_buctis_1_expression |
+                                 irregular_buctis_2_expression |
+                                 constant |
+                                 TERM |
+                                 LOOBEAN |
+                                 AURA |
+                                 SKIN |
+                                 KET |
+                                 PAT |
+                                 SIG |
+                                 TAR |
+                                 WUT
 
-private rune-2-fixed-hh ::= '.*' | '.=' | '=<' | '=>' | '=-' | '=+' | '?<' | '?>' | '|:' | ':_' | ':-' | '%.' | '%-' |
-                            '^.' | '^+' | '~|' | '~_' | '~=' | '~!'
-private rune-2-fixed-sh ::= '!<' | '=|' | '|~' | '|*' | '|=' | '^-' | '^=' | '$|' | '$&' | ';;'
-private rune-2-fixed-ss ::= '$<' | '$>' | '$-' | '$^' | '$@'
-private rune-2-fixed-th ::= '~$' | '~/'
+//
+// Literals
+//
 
-private rune-3-fixed-hhh ::= '?:' | '?.' | ':+' | '%+' | '~?'
-private rune-3-fixed-shh ::= '=;' | '=/'
-private rune-3-fixed-whh ::= '=.' | '?^' | '?~' | '?@' | '%~'
-
-private rune-4-fixed-hhhh ::= ':^' | '%^'
-
-private rune-0-running-h ::= '?|' | '?&' | ':~' | ':*' | ';='
-private rune-0-running-s ::= '$%' | '$:' | '$?'
-
-private rune-1-running-hh ::= '=~' | '%:' | ';:' | ';~'
-
-private rune-1-jogging-wwh ::= '%_' | '%='
-
-private rune-0-core ::= '|%' | '|@'
-
-// non-rune expressions
-literal ::= '~' |
-            LOOBEAN |
-            UNSIGNED_DECIMAL |
-            UNSIGNED_BINARY |
-            UNSIGNED_HEXADECIMAL |
-            UNSIGNED_B32 |
-            UNSIGNED_B64 |
-            SIGNED_DECIMAL |
-            SIGNED_BINARY |
-            SIGNED_HEXADECIMAL |
-            SIGNED_B32 |
-            SIGNED_B64 |
-            FLOAT |
-            DOUBLE |
-            HALF |
-            QUAD |
-            TERM |
-            KNOT |
-            CORD |
-            TAPE |
-            SHIP |
-            UNSCRAMBLED_SHIP |
-            IPV4 |
-            IPV6 |
-            ABSOLUTE_DATE |
+literal ::= path |
+            UNICODE_CODEPOINT |
             RELATIVE_DATE |
-            UNICODE_POINT |
-            PATH
+            ABSOLUTE_DATE |
+            IPV6 |
+            IPV4 |
+            UNSCRAMBLED_SHIP |
+            SHIP |
+            MULTILINE_TAPE |
+            SIMPLE_TAPE |
+            TERM |
+            MULTILINE_CORD |
+            SIMPLE_CORD |
+            KNOT |
+            all_hoon_numeric |
+            loobean |
+            null
 
-spec ::= '*' | '@' | '^' | AURA | TERM | SKIN | irregular-buccol | '(' SKIN { ' ' spec }+ ')' | { SKIN '=' spec }
+constant ::= CEN
+             (
+                 SIG |
+                 BAR |
+                 PAM |
+                 all_hoon_numeric |
+                 SIMPLE_CORD |
+                 SHIP |
+                 UNSCRAMBLED_SHIP |
+                 IPV4 |
+                 IPV6 |
+                 ABSOLUTE_DATE |
+                 RELATIVE_DATE |
+                 UNICODE_CODEPOINT
+             )
 
-wing ::= wing-fragment { '.' wing-fragment }*
-private wing-fragment ::= '.' | ',' | { { '^' }* SKIN } | LARK | TREE_SLOT | LIST_SLOT
+//
+// Larks
+//
+
+lark ::= lark_alpha { lark_beta lark_alpha }* { lark_beta }?
+private lark_alpha ::= HEP | LUS
+private lark_beta ::= GAL | GAR
+
+//
+// Paths
+//
+
+simple_path ::= { { FAS }+ SKIN }+
+path ::= { { FAS }+ path_component }+
+private path_component ::= irregular_cencol_expression |
+                           irregular_coltar_expression |
+                           all_hoon_numeric |
+                           SHIP |
+                           UNSCRAMBLED_SHIP |
+                           ABSOLUTE_DATE |
+                           RELATIVE_DATE |
+                           IPV4 |
+                           IPV6 |
+                           UNICODE_CODEPOINT |
+                           KNOT |
+                           SIMPLE_CORD |
+                           SKIN |
+                           SIG
+
+//
+// Slot indexing
+//
+
+tree_address ::= (BAR | LUS | PAM) non_hoon_number
+
+//
+// Token extensions
+//
+
+private sail_skin ::= SKIN | CAMEL_CASE_SKIN
+
+skin_as_wing_or_spec ::= face { (COL | DOT) face }*
+private face ::= { KET }* face_component
+private face_component ::= SKIN | BUC
+
+private non_hoon_number ::= THREE_DIGIT_DECIMAL | NON_HOON_NUM
+private unsigned_decimal ::= THREE_DIGIT_DECIMAL | UNSIGNED_DECIMAL
+private all_hoon_numeric ::= THREE_DIGIT_DECIMAL |
+                             UNSIGNED_DECIMAL |
+                             UNSIGNED_BINARY |
+                             UNSIGNED_HEXADECIMAL |
+                             UNSIGNED_B32 |
+                             UNSIGNED_B58 |
+                             UNSIGNED_B64 |
+                             SIGNED_DECIMAL |
+                             SIGNED_BINARY |
+                             SIGNED_HEXADECIMAL |
+                             SIGNED_B32 |
+                             SIGNED_B58 |
+                             SIGNED_B64 |
+                             FLOAT |
+                             DOUBLE |
+                             HALF |
+                             QUAD
+
+private loobean ::= LOOBEAN | BAR | PAM
+
+private null ::= SIG | FAS
+
+//
+// Runes
+//
+
+fake hoon_rune ::= rune_symbol rune_symbol
+fake rune_symbol ::= BAR | BUC | CAB | CEN | COL | COM | DOT | FAS | GAL | GAR | HEP | KET | LUS | MIC | PAM | PAT |
+                     SIG | TAR | TIS | WUT | ZAP
+
+// Nock runes
+dotket ::= DOT KET {extends=hoon_rune}
+dotlus ::= DOT LUS {extends=hoon_rune}
+dottar ::= DOT TAR {extends=hoon_rune}
+dottis ::= DOT TIS {extends=hoon_rune}
+dotwut ::= DOT WUT {extends=hoon_rune}
+
+// Wildcard runes
+zapcol ::= ZAP COL {extends=hoon_rune}
+zapcom ::= ZAP COM {extends=hoon_rune}
+zapdot ::= ZAP DOT {extends=hoon_rune}
+zapgal ::= ZAP GAL {extends=hoon_rune}
+zapgar ::= ZAP GAR {extends=hoon_rune}
+zapmic ::= ZAP MIC {extends=hoon_rune}
+zappat ::= ZAP PAT {extends=hoon_rune}
+zaptis ::= ZAP TIS {extends=hoon_rune}
+zapwut ::= ZAP WUT {extends=hoon_rune}
+zapzap ::= ZAP ZAP {extends=hoon_rune}
+
+// Subject runes
+tisbar ::= TIS BAR {extends=hoon_rune}
+tiscol ::= TIS COL {extends=hoon_rune}
+tiscom ::= TIS COM {extends=hoon_rune}
+tisdot ::= TIS DOT {extends=hoon_rune}
+tisfas ::= TIS FAS {extends=hoon_rune}
+tishep ::= TIS HEP {extends=hoon_rune}
+tisgal ::= TIS GAL {extends=hoon_rune}
+tisgar ::= TIS GAR {extends=hoon_rune}
+tisket ::= TIS KET {extends=hoon_rune}
+tislus ::= TIS LUS {extends=hoon_rune}
+tismic ::= TIS MIC {extends=hoon_rune}
+tissig ::= TIS SIG {extends=hoon_rune}
+tistar ::= TIS TAR {extends=hoon_rune}
+tiswut ::= TIS WUT {extends=hoon_rune}
+
+// Conditional runes
+wutbar ::= WUT BAR {extends=hoon_rune}
+wutcol ::= WUT COL {extends=hoon_rune}
+wutdot ::= WUT DOT {extends=hoon_rune}
+wuthep ::= WUT HEP {extends=hoon_rune}
+wutgal ::= WUT GAL {extends=hoon_rune}
+wutgar ::= WUT GAR {extends=hoon_rune}
+wutket ::= WUT KET {extends=hoon_rune}
+wutlus ::= WUT LUS {extends=hoon_rune}
+wutpam ::= WUT PAM {extends=hoon_rune}
+wutpat ::= WUT PAT {extends=hoon_rune}
+wutsig ::= WUT SIG {extends=hoon_rune}
+wuttis ::= WUT TIS {extends=hoon_rune}
+wutzap ::= WUT ZAP {extends=hoon_rune}
+
+// Core runes
+barbuc ::= BAR BUC {extends=hoon_rune}
+barcab ::= BAR CAB {extends=hoon_rune}
+barcen ::= BAR CEN {extends=hoon_rune}
+barcol ::= BAR COL {extends=hoon_rune}
+bardot ::= BAR DOT {extends=hoon_rune}
+barhep ::= BAR HEP {extends=hoon_rune}
+barket ::= BAR KET {extends=hoon_rune}
+barpat ::= BAR PAT {extends=hoon_rune}
+barsig ::= BAR SIG {extends=hoon_rune}
+bartar ::= BAR TAR {extends=hoon_rune}
+bartis ::= BAR TIS {extends=hoon_rune}
+barwut ::= BAR WUT {extends=hoon_rune}
+
+// Core arms runes
+lusbar ::= LUS BAR {extends=hoon_rune}
+lusbuc ::= LUS BUC {extends=hoon_rune}
+luslus ::= LUS LUS {extends=hoon_rune}
+lustar ::= LUS TAR {extends=hoon_rune}
+
+// Cell runes
+colcab ::= COL CAB {extends=hoon_rune}
+colhep ::= COL HEP {extends=hoon_rune}
+colket ::= COL KET {extends=hoon_rune}
+collus ::= COL LUS {extends=hoon_rune}
+colsig ::= COL SIG {extends=hoon_rune}
+coltar ::= COL TAR {extends=hoon_rune}
+
+// Function call runes
+cencab ::= CEN CAB {extends=hoon_rune}
+cencol ::= CEN COL {extends=hoon_rune}
+cendot ::= CEN DOT {extends=hoon_rune}
+cenhep ::= CEN HEP {extends=hoon_rune}
+cenket ::= CEN KET {extends=hoon_rune}
+cenlus ::= CEN LUS {extends=hoon_rune}
+censig ::= CEN SIG {extends=hoon_rune}
+centar ::= CEN TAR {extends=hoon_rune}
+centis ::= CEN TIS {extends=hoon_rune}
+
+// Casting runes
+ketbar ::= KET BAR {extends=hoon_rune}
+ketcol ::= KET COL {extends=hoon_rune}
+ketdot ::= KET DOT {extends=hoon_rune}
+kethep ::= KET HEP {extends=hoon_rune}
+ketlus ::= KET LUS {extends=hoon_rune}
+ketpam ::= KET PAM {extends=hoon_rune}
+ketsig ::= KET SIG {extends=hoon_rune}
+kettar ::= KET TAR {extends=hoon_rune}
+kettis ::= KET TIS {extends=hoon_rune}
+ketwut ::= KET WUT {extends=hoon_rune}
+
+// Structure runes
+bucbar ::= BUC BAR {extends=hoon_rune}
+buccab ::= BUC CAB {extends=hoon_rune}
+buccen ::= BUC CEN {extends=hoon_rune}
+buccol ::= BUC COL {extends=hoon_rune}
+bucgal ::= BUC GAL {extends=hoon_rune}
+bucgar ::= BUC GAR {extends=hoon_rune}
+buchep ::= BUC HEP {extends=hoon_rune}
+bucket ::= BUC KET {extends=hoon_rune}
+bucmic ::= BUC MIC {extends=hoon_rune}
+bucpam ::= BUC PAM {extends=hoon_rune}
+bucpat ::= BUC PAT {extends=hoon_rune}
+bucsig ::= BUC SIG {extends=hoon_rune}
+buctis ::= BUC TIS {extends=hoon_rune}
+bucwut ::= BUC WUT {extends=hoon_rune}
+
+// SAIL & functional runes
+miccol ::= MIC COL {extends=hoon_rune}
+micfas ::= MIC FAS {extends=hoon_rune}
+micgal ::= MIC GAL {extends=hoon_rune}
+miclus ::= MIC LUS {extends=hoon_rune}
+micmic ::= MIC MIC {extends=hoon_rune}
+micsig ::= MIC SIG {extends=hoon_rune}
+mictar ::= MIC TAR {extends=hoon_rune}
+mictis ::= MIC TIS {extends=hoon_rune}
+
+// Hint runes
+sigbar ::= SIG BAR {extends=hoon_rune}
+sigbuc ::= SIG BUC {extends=hoon_rune}
+sigcab ::= SIG CAB {extends=hoon_rune}
+sigcen ::= SIG CEN {extends=hoon_rune}
+sigfas ::= SIG FAS {extends=hoon_rune}
+siggal ::= SIG GAL {extends=hoon_rune}
+siggar ::= SIG GAR {extends=hoon_rune}
+siglus ::= SIG LUS {extends=hoon_rune}
+sigpam ::= SIG PAM {extends=hoon_rune}
+sigtis ::= SIG TIS {extends=hoon_rune}
+sigwut ::= SIG WUT {extends=hoon_rune}
+sigzap ::= SIG ZAP {extends=hoon_rune}
+
+// Terminator runes
+hephep ::= HEP HEP {extends=hoon_rune}
+tistis ::= TIS TIS {extends=hoon_rune}
 
 //
 // Core & shared grammar
 //
 
-private gap ::= COMMENT | { ' ' COMMENT } | { GAP COMMENT* }
+private dummy ::= COMMENT
 
-private meta list-one-or-more ::= <<rule>> { <<separator>> <<rule>> }*
-private meta list-two-or-more ::= <<rule>> { <<separator>> <<rule>> }+
-private meta gapped-list ::= <<list-one-or-more <<rule>> gap>>
+private gap ::= { ACE }? { GAP }+
+
+private meta gapped_list ::= <<list_one_or_more <<rule>> gap>>
+private meta list_one_or_more ::= <<rule>> { <<separator>> <<rule>> }*
+private meta list_two_or_more ::= <<rule>> { <<separator>> <<rule>> }+
+private meta paranthesized ::= PAL <<rule>> PAR
+private meta bracketed ::= SEL <<rule>> SER

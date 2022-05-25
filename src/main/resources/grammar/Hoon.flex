@@ -2,8 +2,9 @@ package com.ashelkov.hoon.plugin;
 
 import com.intellij.lexer.FlexLexer;
 import com.intellij.psi.tree.IElementType;
-import org.intellij.sdk.language.psi.HoonTypes;
 import com.intellij.psi.TokenType;
+
+import com.ashelkov.hoon.plugin.psi.HoonTypes;
 
 //
 // https://jflex.de/manual.html
@@ -19,61 +20,104 @@ import com.intellij.psi.TokenType;
 %eof{  return;
 %eof}
 
+%{
+    int kelCount = 0;
+    int palCount = 0;
+    int selCount = 0;
+%}
+
+//
+// INDIVIDUAL SYMBOLS
+//
+
+bar = "|"
+buc = "$"
+cab = "_"
+cen = "%"
+col = ":"
+com = ","
+dot = "."
+fas = "/"
+gal = "<"
+gar = ">"
+hax = "#"
+hep = "-"
+ket = "^"
+lus = "+"
+mic = ";"
+pal = "("
+pam = "&"
+par = ")"
+pat = "@"
+sel = "["
+ser = "]"
+sig = "~"
+tar = "*"
+tic = "`"
+tis = "="
+wut = "?"
+zap = "!"
+
 //
 // SPACING & DOCUMENTATION STRUCTURES
 //
 
+// ACE
+ace = " "
+
 // GAP
 newline = \R
-spaces = " "{2} " "*
-short_gap = {newline} | {spaces}
-full_gap = {short_gap}+
+two_spaces = " "{2}
+gap = ({newline} | {two_spaces}) ({newline} | " ")*
 
 // COMMENT
-comment = "::" .* {newline}
+comment = "::" .*
 
 //
 // LITERALS
 //
 
 // LOOBEAN
-true = "&" | "%.y"
-false = "|" | "%.n"
-loobean = {true} | {false}
+loobean = "%.y" | "%.n"
 
 // UNSIGNED DECIMAL
 zero = "0"
 decimal = [0-9]
 nonzero_decimal = [1-9]
-hoon_decimal = {nonzero_decimal} {decimal}{0,2} ("." {decimal}{3})*
+three_digit_decimal = {nonzero_decimal} {decimal}{0,2}
+hoon_decimal = {three_digit_decimal} ("." ({newline} " "*)? {decimal}{3})+
 unsigned_decimal = {zero} | {hoon_decimal}
 
 // UNSIGNED BINARY
 binary = [01]
-hoon_binary = "1" {binary}{0,3} ("." {binary}{4})*
-unsigned_binary = "0b" {zero} | {hoon_binary}
+hoon_binary = "1" {binary}{0,3} ("." ({newline} " "*)? {binary}{4})*
+unsigned_binary = "0b" ({zero} | {hoon_binary})
 
 // UNSIGNED HEXADECIMAL
-hexadecimal = [0-9a-f]
-nonzero_hexadecimal = [1-9a-f]
+hexadecimal = [0-9a-fA-F]
+nonzero_hexadecimal = [1-9a-fA-F]
 hoon_hex_block = {nonzero_hexadecimal} {hexadecimal}{0,3}
-hoon_hex = {hoon_hex_block} ("." {hexadecimal}{4})*
-unsigned_hex = "0x" {zero} | {hoon_hex}
+hoon_hex = {hoon_hex_block} ("." ({newline} " "*)? {hexadecimal}{4})*
+unsigned_hex = "0x" ({zero} | {hoon_hex})
 
 // UNSIGNED BASE32
 base32 = [0-9a-v]
 nonzero_base32 = [1-9a-v]
-hoon_base32 = {nonzero_base32} {base32}{0,4} ("." {base32}{5})*
-unsigned_base32 = "0v" {zero} | {hoon_base32}
+hoon_base32 = {nonzero_base32} {base32}{0,4} ("." ({newline} " "*)? {base32}{5})*
+unsigned_base32 = "0v" ({zero} | {hoon_base32})
+
+// UNSIGNED BASE58
+base58 = [[0-9]||[[a-z]--l]||[[A-Z]--[IO]]]
+unsigned_base58 = "0c" {base58}+
 
 // UNSIGNED BASE64
 base64 = [0-9a-zA-Z~\-]
 nonzero_base64 = [1-9a-zA-Z~\-]
-hoon_base64 = {nonzero_base64} {base64}{0,4} ("." {base64}{5})*
-unsigned_base64 = "0w" {zero} | {hoon_base64}
+hoon_base64 = {nonzero_base64} {base64}{0,4} ("." ({newline} " "*)? {base64}{5})*
+unsigned_base64 = "0w" ({zero} | {hoon_base64})
 
 // SIGNED DECIMAL
-signed_decimal = "-"{1,2} {unsigned_decimal}
+signed_decimal = "-"{1,2} ({three_digit_decimal} | {unsigned_decimal})
 
 // SIGNED BINARY
 signed_binary = "-"{1,2} {unsigned_binary}
@@ -83,6 +127,9 @@ signed_hex = "-"{1,2} {unsigned_hex}
 
 // SIGNED BASE32
 signed_base32 = "-"{1,2} {unsigned_base32}
+
+// SIGNED BASE58
+signed_base58 = "-"{1,2} {unsigned_base58}
 
 // SIGNED BASE64
 signed_base64 = "-"{1,2} {unsigned_base64}
@@ -106,26 +153,23 @@ half_precision_float = ".~~" {hoon_float}
 // QUAD
 quad_precision_float = ".~~~" {hoon_float}
 
-// TERM
-term_alphabet = [0-9a-z\-]
-term_text = [a-z] {term_alphabet}*
-term = "%" ({unsigned_decimal} | {term_text} | "$")
-
 // KNOT
 knot_alphabet = [0-9a-z~\.\-]
 knot = "~." {knot_alphabet}*
 
 // CORD
-cord_alphabet = [[.]--[']] | (\\ \')
-cord_single_line = "'" {cord_alphabet}* "'"
-cord_multi_line = "'''" ([.]* {newline})* [.]* "'''"
-cord = {cord_single_line} | {cord_multi_line}
+string_hex_alphabet = [0-9a-fA-F]
+string_hex_digit = \\ {string_hex_alphabet}{2}
+cord_alphabet = [^\\'\r\n\u2028\u2029\u000B\u000C\u0085] | (\\\\) | (\\') | {string_hex_digit}
+
+// TERM
+term_alphabet = [0-9a-z\-]
+term_text = [a-z] {term_alphabet}*
+term = "%" ({term_text} | "$")
 
 // TAPE
-tape_alphabet = [[.]--[\"]] | (\\ \")
-tape_single_line = \" {tape_alphabet}* \"
-tape_continuation = "." {newline} " "* {tape_single_line}
-tape = {tape_single_line} {tape_continuation}*
+tape_alphabet = [^\\\{\"\r\n\u2028\u2029\u000B\u000C\u0085] | (\\\\) | (\\\{) | (\\\") | {string_hex_digit}
+tape_interpol_alphabet = [^\}\r\n\u2028\u2029\u000B\u000C\u0085]
 
 // SHIP
 vowel = [aeiouy]
@@ -161,8 +205,8 @@ hour = ([01] {decimal}) | ("2" [0-3])
 min_or_sec = [0-5] {decimal}
 date_block = {nonzero_decimal_number} "." {month} "." {day}
 time_block = {hour} "." {min_or_sec} "." {min_or_sec}
-millisecond_block = {hexadecimal}{4}
-absolute_date = "~" {date_block} (".." {time_block} (".." {millisecond_block})?)?
+millisecond_block = ".." {hexadecimal}{4}
+absolute_date = "~" {date_block} (".." {time_block} {millisecond_block}?)?
 
 // RELATIVE DATE
 day_block = "d" {any_decimal}
@@ -170,87 +214,152 @@ hour_block = "h" {any_decimal}
 minute_block = "m" {any_decimal}
 second_block = "s" {any_decimal}
 relative_date_block = {day_block} | {hour_block} | {minute_block} | {second_block}
-relative_date = "~" {relative_date_block} ("." {relative_date_block})*
+relative_date = "~" {relative_date_block} ("." {relative_date_block})* {millisecond_block}?
 
-// UNICODE POINT
+// UNICODE CODEPOINT
 unicode_point = "~" {hexadecimal}+ "."
 unicode_text = [0-9a-z_\.\-]+
 unicode_codepoint = "~-" ({unicode_point} | {unicode_text})?
 
-// PATH
-path_start = "%" | "/" | "/%"
-current_path_block = "="+
-path_block = "~" | {current_path_block} | {term_text} | {cord_single_line} | {knot} | {unsigned_decimal} |
-             {unsigned_binary} | {unsigned_hex} | {unsigned_base32} | {unsigned_base64} | {signed_decimal} |
-             {signed_binary} | {signed_hex} | {signed_base32} | {signed_base64} | {single_precision_float} |
-             {double_precision_float} | {half_precision_float} | {quad_precision_float} | {ship} | {unscrambled_ship} |
-             {absolute_date} | {relative_date} | {ipv4} | {ipv6} | {unicode_codepoint}
-path = {path_start} ("/" {path_block})*
-
-// LARK
-lark_alpha = "-" | "+"
-lark_beta = "<" | ">"
-lark_followup_block = {lark_beta} {lark_alpha}
-lark = {lark_alpha} {lark_followup_block}* {lark_beta}?
-
-// TREE_SLOT
-tree_slot = "+" {nonzero_decimal_number}
-
-// LIST_SLOT
-list_slot_command = "&" | "|"
-list_slot = {list_slot_command} {nonzero_decimal_number}
-
 // AURA
-aura_unicode = "c"
-aura_date = "d" [ar]?
-aura_ip = "i" [fs]?
-aura_ship = "p" | "q"
-aura_float = "r" [hsdq]?
-aura_signed_num = "s" [bdvwx]?
-aura_unsigned_num = "u" [bdvwx]?
-aura_text = "t" ("a" "s"?)?
-aura_keyword = {aura_unicode} | {aura_date} | {aura_ip} | {aura_ship} | {aura_float} | {aura_signed_num} |
-               {aura_unsigned_num} | {aura_text}
-aura_width_marker = [A-Z]+
-aura = "@" {aura_keyword} {aura_width_marker}?
+// Currently, auras can be whatever you want. The pretty printer does a prefix match, and the type checker has generic
+// nesting rules.
+
+//aura_unicode = "c"
+//aura_date = "d" [ar]?
+//aura_ip = "i" [fs]?
+//aura_ship = "p" | "q"
+//aura_float = "r" [hsdq]?
+//aura_signed_num = "s" [bcdvwx]?
+//aura_unsigned_num = "u" [bcdvwx]?
+//aura_text = "t" ("a" "s"?)?
+//aura_keyword = {aura_unicode} | {aura_date} | {aura_ip} | {aura_ship} | {aura_float} | {aura_signed_num} |
+//               {aura_unsigned_num} | {aura_text}
+
+lowercase_text = [a-z]
+uppercase_text = [A-Z]
+aura_plain = "@" {lowercase_text}+ {uppercase_text}*
+aura_width_only = "@" {uppercase_text}+
+aura = {aura_plain} | {aura_width_only}
+
+// CHUM
+chum = {term} "." {nonzero_decimal_number}
 
 // SKIN
 skin = {term_text}
 
+// CAMEL_CASE_SKIN
+camel_case_skin = {lowercase_text} ({lowercase_text} | {uppercase_text})*
+
+%state CORD
+
+%state TAPE
+%state TAPE_INTERPOL
+
+%state MULTI_CORD
+%state MULTI_TAPE
+
 %%
 
-{full_gap}               { return HoonTypes.GAP; }
-{loobean}                { return HoonTypes.LOOBEAN; }
-{unsigned_decimal}       { return HoonTypes.UNSIGNED_DECIMAL; }
-{unsigned_binary}        { return HoonTypes.UNSIGNED_BINARY; }
-{unsigned_hex}           { return HoonTypes.UNSIGNED_HEXADECIMAL; }
-{unsigned_base32}        { return HoonTypes.UNSIGNED_B32; }
-{unsigned_base64}        { return HoonTypes.UNSIGNED_B64; }
-{signed_decimal}         { return HoonTypes.SIGNED_DECIMAL; }
-{signed_binary}          { return HoonTypes.SIGNED_BINARY; }
-{signed_hex}             { return HoonTypes.SIGNED_HEXADECIMAL; }
-{signed_base32}          { return HoonTypes.SIGNED_B32; }
-{signed_base64}          { return HoonTypes.SIGNED_B64; }
-{single_precision_float} { return HoonTypes.FLOAT; }
-{double_precision_float} { return HoonTypes.DOUBLE; }
-{half_precision_float}   { return HoonTypes.HALF; }
-{quad_precision_float}   { return HoonTypes.QUAD; }
-{term}                   { return HoonTypes.TERM; }
-{knot}                   { return HoonTypes.KNOT; }
-{cord}                   { return HoonTypes.CORD; }
-{tape}                   { return HoonTypes.TAPE; }
-{ship}                   { return HoonTypes.SHIP; }
-{unscrambled_ship}       { return HoonTypes.UNSCRAMBLED_SHIP; }
-{ipv4}                   { return HoonTypes.IPV4; }
-{ipv6}                   { return HoonTypes.IPV6; }
-{absolute_date}          { return HoonTypes.ABSOLUTE_DATE; }
-{relative_date}          { return HoonTypes.RELATIVE_DATE; }
-{unicode_codepoint}      { return HoonTypes.UNICODE_CODEPOINT; }
-{path}                   { return HoonTypes.PATH; }
-{lark}                   { return HoonTypes.LARK; }
-{tree_slot}              { return HoonTypes.TREE_SLOT; }
-{list_slot}              { return HoonTypes.LIST_SLOT; }
-{aura}                   { return HoonTypes.AURA; }
-{skin}                   { return HoonTypes.SKIN; }
-{comment}                { return HoonTypes.COMMENT; }
-{nonzero_decimal_number} { return HoonTypes.NON_HOON_NUM; }
+<YYINITIAL> {
+    {bar}                      { return HoonTypes.BAR; }
+    {buc}                      { return HoonTypes.BUC; }
+    {cab}                      { return HoonTypes.CAB; }
+    {cen}                      { return HoonTypes.CEN; }
+    {col}                      { return HoonTypes.COL; }
+    {com}                      { return HoonTypes.COM; }
+    {dot}                      { return HoonTypes.DOT; }
+    {fas}                      { return HoonTypes.FAS; }
+    {gal}                      { return HoonTypes.GAL; }
+    {gar}                      { return HoonTypes.GAR; }
+    {hax}                      { return HoonTypes.HAX; }
+    {hep}                      { return HoonTypes.HEP; }
+    {ket}                      { return HoonTypes.KET; }
+    {lus}                      { return HoonTypes.LUS; }
+    {mic}                      { return HoonTypes.MIC; }
+    {pal}                      { return HoonTypes.PAL; }
+    {pam}                      { return HoonTypes.PAM; }
+    {par}                      { return HoonTypes.PAR; }
+    {pat}                      { return HoonTypes.PAT; }
+    {sel}                      { return HoonTypes.SEL; }
+    {ser}                      { return HoonTypes.SER; }
+    {sig}                      { return HoonTypes.SIG; }
+    {tar}                      { return HoonTypes.TAR; }
+    {tic}                      { return HoonTypes.TIC; }
+    {tis}                      { return HoonTypes.TIS; }
+    {wut}                      { return HoonTypes.WUT; }
+    {zap}                      { return HoonTypes.ZAP; }
+
+    {ace}                      { return HoonTypes.ACE; }
+    {gap}                      { return HoonTypes.GAP; }
+    {comment}                  { return HoonTypes.COMMENT; }
+
+    {loobean}                  { return HoonTypes.LOOBEAN; }
+    {unsigned_decimal}         { return HoonTypes.UNSIGNED_DECIMAL; }
+    {unsigned_binary}          { return HoonTypes.UNSIGNED_BINARY; }
+    {unsigned_hex}             { return HoonTypes.UNSIGNED_HEXADECIMAL; }
+    {unsigned_base32}          { return HoonTypes.UNSIGNED_B32; }
+    {unsigned_base58}          { return HoonTypes.UNSIGNED_B58; }
+    {unsigned_base64}          { return HoonTypes.UNSIGNED_B64; }
+    {signed_decimal}           { return HoonTypes.SIGNED_DECIMAL; }
+    {signed_binary}            { return HoonTypes.SIGNED_BINARY; }
+    {signed_hex}               { return HoonTypes.SIGNED_HEXADECIMAL; }
+    {signed_base32}            { return HoonTypes.SIGNED_B32; }
+    {signed_base58}            { return HoonTypes.SIGNED_B58; }
+    {signed_base64}            { return HoonTypes.SIGNED_B64; }
+    {single_precision_float}   { return HoonTypes.FLOAT; }
+    {double_precision_float}   { return HoonTypes.DOUBLE; }
+    {half_precision_float}     { return HoonTypes.HALF; }
+    {quad_precision_float}     { return HoonTypes.QUAD; }
+    {knot}                     { return HoonTypes.KNOT; }
+    {term}                     { return HoonTypes.TERM; }
+    {ship}                     { return HoonTypes.SHIP; }
+    {unscrambled_ship}         { return HoonTypes.UNSCRAMBLED_SHIP; }
+    {ipv4}                     { return HoonTypes.IPV4; }
+    {ipv6}                     { return HoonTypes.IPV6; }
+    {absolute_date}            { return HoonTypes.ABSOLUTE_DATE; }
+    {relative_date}            { return HoonTypes.RELATIVE_DATE; }
+    {unicode_codepoint}        { return HoonTypes.UNICODE_CODEPOINT; }
+    {aura}                     { return HoonTypes.AURA; }
+    {skin}                     { return HoonTypes.SKIN; }
+    {chum}                     { return HoonTypes.CHUM; }
+    {three_digit_decimal}      { return HoonTypes.THREE_DIGIT_DECIMAL; }
+    {nonzero_decimal_number}   { return HoonTypes.NON_HOON_NUM; }
+    {camel_case_skin}          { return HoonTypes.CAMEL_CASE_SKIN; }
+
+    "'''" {newline}            { yybegin(MULTI_CORD); }
+    "'"                        { yybegin(CORD); }
+
+    \"\"\" {newline}           { yybegin(MULTI_TAPE); }
+    \"                         { yybegin(TAPE); }
+}
+
+<CORD> {
+    {cord_alphabet}+           { /* do nothing */ }
+    \\ {newline} " "* "/"      { /* do nothing */ }
+    "'"                        { yybegin(YYINITIAL); return HoonTypes.SIMPLE_CORD; }
+}
+
+<TAPE> {
+    "{"                        { ++kelCount; yybegin(TAPE_INTERPOL); }
+    {tape_alphabet}+           { /* do nothing */ }
+    \" "." {newline} " "* \"   { /* do nothing */ }
+    \"                         { yybegin(YYINITIAL); assert(kelCount == 0); return HoonTypes.SIMPLE_TAPE; }
+}
+
+<TAPE_INTERPOL> {
+    {tape_interpol_alphabet}+  { /* do nothing */ }
+    "}"                        { --kelCount; if (kelCount == 0) yybegin(TAPE); }
+}
+
+<MULTI_CORD> {
+    .                          { /* do nothing */ }
+    {newline}                  { /* do nothing */ }
+    {newline} " "* "'''"       { yybegin(YYINITIAL); return HoonTypes.MULTILINE_CORD; }
+}
+
+<MULTI_TAPE> {
+    .                          { /* do nothing */ }
+    {newline}                  { /* do nothing */ }
+    {newline} " "* \"\"\"      { yybegin(YYINITIAL); return HoonTypes.MULTILINE_TAPE; }
+}

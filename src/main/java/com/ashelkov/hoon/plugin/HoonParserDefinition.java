@@ -19,7 +19,11 @@ import com.ashelkov.hoon.plugin.psi.HoonTypes;
 public class HoonParserDefinition implements ParserDefinition {
 
     public static final TokenSet COMMENTS = TokenSet.create(HoonTypes.COMMENT);
-    public static final TokenSet STRINGS = TokenSet.create(HoonTypes.CORD, HoonTypes.TAPE);
+    public static final TokenSet STRINGS = TokenSet.create(
+            HoonTypes.SIMPLE_CORD,
+            HoonTypes.MULTILINE_CORD,
+            HoonTypes.SIMPLE_TAPE,
+            HoonTypes.MULTILINE_TAPE);
 
     public static final IFileElementType FILE = new IFileElementType(HoonLanguage.INSTANCE);
 
