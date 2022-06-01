@@ -197,7 +197,8 @@ ipv4_block = "." {limit_255}
 ipv4 = {ipv4_block}{4}
 
 // IPV6
-ipv6_block = "." {hoon_hex_block}
+ipv6_hex_block = "0" | {hoon_hex_block}
+ipv6_block = "." {ipv6_hex_block}
 ipv6 = {ipv6_block}{4}
 
 // ABSOLUTE DATE
