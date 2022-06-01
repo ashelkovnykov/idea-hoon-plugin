@@ -11,6 +11,6 @@ import com.intellij.openapi.util.IconLoader;
 
 public class HoonIcons {
 
-    public static final Icon FileType = IconLoader.getIcon("/icons/urbit.svg", HoonIcons.class);
+    public static final Icon FILE = IconLoader.getIcon("/icons/urbit.svg", HoonIcons.class);
 
 }

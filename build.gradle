@@ -27,7 +27,7 @@ java {
 
 // See https://github.com/JetBrains/gradle-intellij-plugin/
 intellij {
-    version = '2021.1.3'
+    version = '2022.1.1'
     type = 'IC'
     plugins = ['com.intellij.java']
 }
@@ -39,8 +39,7 @@ tasks {
 
     patchPluginXml {
         version = "${project.version}"
-        sinceBuild = '211'
-        untilBuild = '213.*'
+        sinceBuild = '203'
     }
 
     test {

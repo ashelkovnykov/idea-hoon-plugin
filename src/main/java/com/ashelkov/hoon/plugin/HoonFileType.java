@@ -35,6 +35,6 @@ public class HoonFileType extends LanguageFileType {
     @Nullable
     @Override
     public Icon getIcon() {
-        return HoonIcons.FileType;
+        return HoonIcons.FILE;
     }
 }

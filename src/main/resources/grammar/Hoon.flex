@@ -42,6 +42,8 @@ gal = "<"
 gar = ">"
 hax = "#"
 hep = "-"
+kel = "{"
+ker = "}"
 ket = "^"
 lus = "+"
 mic = ";"
@@ -274,6 +276,8 @@ camel_case_skin = {lowercase_text} ({lowercase_text} | {uppercase_text})*
     {gar}                      { return HoonTypes.GAR; }
     {hax}                      { return HoonTypes.HAX; }
     {hep}                      { return HoonTypes.HEP; }
+    {kel}                      { return HoonTypes.KEL; }
+    {ker}                      { return HoonTypes.KER; }
     {ket}                      { return HoonTypes.KET; }
     {lus}                      { return HoonTypes.LUS; }
     {mic}                      { return HoonTypes.MIC; }

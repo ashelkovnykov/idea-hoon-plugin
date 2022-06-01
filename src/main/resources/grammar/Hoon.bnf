@@ -93,7 +93,7 @@ private meta ford_list ::= <<p>> { COM { ACE | gap }? <<p>> }*
 // Ford runes
 //
 
-fake ford_rune ::= FAS (BUC | CEN | HEP | LUS | SIG | TAR | TIS | WUT)
+ford_rune ::= FAS (BUC | CEN | HEP | LUS | SIG | TAR | TIS | WUT)
 
 fasbuc ::= FAS BUC {extends=ford_rune}
 fascen ::= FAS CEN {extends=ford_rune}
@@ -1000,8 +1000,8 @@ private lark_beta ::= GAL | GAR
 // Paths
 //
 
-simple_path ::= { { FAS }+ SKIN }+
 path ::= { { FAS }+ path_component }+
+simple_path ::= { { FAS }+ SKIN }+ {extends=path}
 private path_component ::= irregular_cencol_expression |
                            irregular_coltar_expression |
                            all_hoon_numeric |
@@ -1061,9 +1061,9 @@ private null ::= SIG | FAS
 // Runes
 //
 
-fake hoon_rune ::= rune_symbol rune_symbol
-fake rune_symbol ::= BAR | BUC | CAB | CEN | COL | COM | DOT | FAS | GAL | GAR | HEP | KET | LUS | MIC | PAM | PAT |
-                     SIG | TAR | TIS | WUT | ZAP
+hoon_rune ::= rune_symbol rune_symbol
+rune_symbol ::= BAR | BUC | CAB | CEN | COL | COM | DOT | FAS | GAL | GAR | HEP | KEL| KER | KET | LUS | MIC | PAM |
+                PAT | SIG | TAR | TIS | WUT | ZAP
 
 // Nock runes
 dotket ::= DOT KET {extends=hoon_rune}
