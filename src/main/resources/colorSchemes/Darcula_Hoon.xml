@@ -15,6 +15,11 @@
       <option name="FOREGROUND" value="007886" />
     </value>
   </option>
+  <option name="HOON_FORD_RUNE">
+    <value>
+      <option name="FOREGROUND" value="850000" />
+    </value>
+  </option>
   <option name="HOON_IP_ADDRESS">
     <value>
       <option name="FOREGROUND" value="0090a2" />
@@ -28,6 +33,17 @@
   <option name="HOON_PARENTEHSES">
     <value>
       <option name="FOREGROUND" value="ffeb00" />
+    </value>
+  </option>
+  <option name="HOON_PATH">
+    <value>
+      <option name="FOREGROUND" value="2dda00" />
+      <option name="FONT_TYPE" value="2" />
+    </value>
+  </option>
+  <option name="HOON_RUNE">
+    <value>
+      <option name="FOREGROUND" value="ff2e00" />
     </value>
   </option>
   <option name="HOON_SHIP">

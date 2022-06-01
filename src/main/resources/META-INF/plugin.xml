@@ -30,11 +30,11 @@
                               file="colorSchemes/Default_Hoon.xml"/>
     <additionalTextAttributes scheme="Darcula"
                               file="colorSchemes/Darcula_Hoon.xml"/>
+    <annotator language="Hoon"
+               implementationClass="com.ashelkov.hoon.plugin.HoonAnnotator"/>
 
     <!--    TODO -->
 
-<!--    <annotator language="JAVA"-->
-<!--               implementationClass="org.intellij.sdk.language.SimpleAnnotator"/>-->
 
 <!--    <codeInsight.lineMarkerProvider language="JAVA"-->
 <!--                                    implementationClass="org.intellij.sdk.language.SimpleLineMarkerProvider"/>-->

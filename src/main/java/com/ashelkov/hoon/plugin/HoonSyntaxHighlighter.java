@@ -13,6 +13,14 @@ import static com.intellij.openapi.editor.colors.TextAttributesKey.createTextAtt
 
 public class HoonSyntaxHighlighter extends SyntaxHighlighterBase {
 
+    public static final TextAttributesKey RUNE = createTextAttributesKey(
+            "HOON_RUNE",
+            DefaultLanguageHighlighterColors.KEYWORD);
+
+    public static final TextAttributesKey FORD_RUNE = createTextAttributesKey(
+            "HOON_FORD_RUNE",
+            DefaultLanguageHighlighterColors.KEYWORD);
+
     public static final TextAttributesKey IDENTIFIER = createTextAttributesKey(
             "HOON_SKIN",
             DefaultLanguageHighlighterColors.IDENTIFIER);
@@ -60,6 +68,10 @@ public class HoonSyntaxHighlighter extends SyntaxHighlighterBase {
     public static final TextAttributesKey UNICODE_POINT = createTextAttributesKey(
             "HOON_UNICODE_POINT",
             DefaultLanguageHighlighterColors.STRING);
+
+    public static final TextAttributesKey PATH = createTextAttributesKey(
+            "HOON_PATH",
+            DefaultLanguageHighlighterColors.HIGHLIGHTED_REFERENCE);
 
     public static final TextAttributesKey BRACES = createTextAttributesKey(
             "HOON_BRACES",

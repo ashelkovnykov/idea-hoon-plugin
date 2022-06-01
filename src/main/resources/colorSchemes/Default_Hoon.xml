@@ -275,6 +275,12 @@
       <option name="FONT_TYPE" value="1" />
     </value>
   </option>
+  <option name="HOON_PATH">
+    <value>
+      <option name="FOREGROUND" value="bf1f" />
+      <option name="FONT_TYPE" value="2" />
+    </value>
+  </option>
   <option name="HOON_SHIP">
     <value>
       <option name="FOREGROUND" value="32ff" />

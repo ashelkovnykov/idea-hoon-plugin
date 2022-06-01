@@ -368,3 +368,5 @@ camel_case_skin = {lowercase_text} ({lowercase_text} | {uppercase_text})*
     {newline}                  { /* do nothing */ }
     {newline} " "* \"\"\"      { yybegin(YYINITIAL); return HoonTypes.MULTILINE_TAPE; }
 }
+
+[^]                            { return TokenType.BAD_CHARACTER; }
