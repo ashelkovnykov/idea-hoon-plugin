@@ -32,45 +32,8 @@
                               file="colorSchemes/Darcula_Hoon.xml"/>
     <annotator language="Hoon"
                implementationClass="com.ashelkov.hoon.plugin.HoonAnnotator"/>
+    <lang.commenter language="Hoon"
+                    implementationClass="com.ashelkov.hoon.plugin.HoonCommenter"/>
 
-    <!--    TODO -->
-
-
-<!--    <codeInsight.lineMarkerProvider language="JAVA"-->
-<!--                                    implementationClass="org.intellij.sdk.language.SimpleLineMarkerProvider"/>-->
-
-<!--    <completion.contributor language="Hoon"-->
-<!--                            implementationClass="org.intellij.sdk.language.SimpleCompletionContributor"/>-->
-
-<!--    <psi.referenceContributor language="JAVA"-->
-<!--                              implementation="org.intellij.sdk.language.SimpleReferenceContributor"/>-->
-
-<!--    <lang.refactoringSupport language="Hoon"-->
-<!--                             implementationClass="org.intellij.sdk.language.SimpleRefactoringSupportProvider"/>-->
-
-<!--    <lang.findUsagesProvider language="Hoon"-->
-<!--                             implementationClass="org.intellij.sdk.language.SimpleFindUsagesProvider"/>-->
-
-<!--    <lang.foldingBuilder language="JAVA"-->
-<!--                         implementationClass="org.intellij.sdk.language.SimpleFoldingBuilder"/>-->
-
-<!--    <gotoSymbolContributor implementation="org.intellij.sdk.language.SimpleChooseByNameContributor"/>-->
-
-<!--    <lang.psiStructureViewFactory language="Hoon"-->
-<!--                                  implementationClass="org.intellij.sdk.language.SimpleStructureViewFactory"/>-->
-
-<!--    <lang.formatter language="Hoon"-->
-<!--                    implementationClass="org.intellij.sdk.language.SimpleFormattingModelBuilder"/>-->
-
-<!--    <codeStyleSettingsProvider implementation="org.intellij.sdk.language.SimpleCodeStyleSettingsProvider"/>-->
-
-<!--    <langCodeStyleSettingsProvider implementation="org.intellij.sdk.language.SimpleLanguageCodeStyleSettingsProvider"/>-->
-
-<!--    <lang.commenter language="Hoon"-->
-<!--                    implementationClass="org.intellij.sdk.language.SimpleCommenter"/>-->
-
-<!--    <lang.documentationProvider language="Hoon"-->
-<!--                                implementationClass="org.intellij.sdk.language.SimpleDocumentationProvider"/>-->
   </extensions>
-
 </idea-plugin>
