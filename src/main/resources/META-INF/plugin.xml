@@ -8,7 +8,23 @@
 
   <description>
     <![CDATA[
-      Plugin to support the Hoon programming language.
+      Plugin to support the <a href="https://urbit.org/docs/hoon/overview">Hoon</a> programming language.
+      <p></p>
+      <p>Hoon is a high-level, purely functional language designed from the ground up for the Urbit project. The right
+      way to think about Hoon is as "the C of Urbit". <a href="https://urbit.org">Urbit</a> is a clean-slate OS and
+      network for the 21st century.</p>
+      <p></p>
+      <p>Features:
+      <ul>
+        <li>Syntax checking</li>
+        <li>Customizable syntax highlighting</li>
+        <li>Comment/uncomment shortcut</li>
+        <li>Custom Hoon file icon</li>
+      </ul>
+      </p>
+      <p></p>
+      <p>Once downloaded, files using the '.hoon' file extension will automatically be processed by the plugin. The
+      plugin will check for errors and highlight tokens/expressions.</p>
     ]]>
   </description>
   <change-notes>
