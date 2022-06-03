@@ -23,7 +23,8 @@ This is the source code for a plugin to add language support for [Hoon](https://
 ## Usage
 
 The plugin is available for download natively through the IDEA plugin marketplace. You can also manually download and
-install the plugin from the JetBrains Marketplace or from the releases page of this repository.
+install the plugin from the [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/19294-hoon-language) or from
+the [releases page](https://github.com/ashelkovnykov/idea-hoon-plugin/releases) of this repository.
 
 Once downloaded, files ending in `.hoon` will automatically be processed by the plugin. The plugin will check for syntax
 errors and highlight tokens/expressions. 
