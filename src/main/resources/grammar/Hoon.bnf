@@ -9,8 +9,6 @@
  *   _ https://github.com/JetBrains/Grammar-Kit/blob/master/grammars/Grammar.bnf
  *
  * Known issues:
- *   - Tokenization errors for irregular wutzap (?!) (e.g. '!=(1 2)' interpreted as poorly-formed zaptis expression
- *     instead of '?!  .=  1  2')
  *   - Tokenization errors for irregular tisgal (=<) (e.g. 'result:~(arm core arg)' interpreted as poorly-formed colsig
  *     expression instead of '=<  result  %~  arm  core  arg')
  *   - Tokenization errors for irregular colhep (:-) (e.g. '-^+' interpreted as poorly-formed ketlus expression instead
@@ -843,7 +841,8 @@ irregular_hoon_expression ::= irregular_tang_expression |
                               irregular_list_expression |
                               irregular_cask_expression |
                               irregular_rune_expression |
-                              irregular_unit_expression
+                              irregular_unit_expression |
+                              irregular_not_eq_expression
                               {extends=wide_expression}
 
 // Need kettis (^=) to have top priority for cases where assigning multiple faces at once
@@ -899,6 +898,7 @@ irregular_list_expression ::= <<bracketed <<list_one_or_more wide_expression ACE
 irregular_tape_expression ::= GAL <<list_one_or_more wide_expression ACE>> GAR {extends=irregular_hoon_expression}
 irregular_tang_expression ::= GAR <<list_one_or_more wide_expression ACE>> GAL {extends=irregular_hoon_expression}
 irregular_unit_expression ::= TIC wide_expression {extends=irregular_hoon_expression}
+irregular_not_eq_expression ::= ZAPTIS <<paranthesized { wide_expression ACE wide_expression }>>
 
 //
 // Specless expressions
@@ -917,7 +917,8 @@ specless_irregular_expression ::= irregular_tang_expression |
                                   irregular_list_expression |
                                   irregular_cask_expression |
                                   specless_irregular_rune_expression |
-                                  irregular_unit_expression
+                                  irregular_unit_expression |
+                                  irregular_not_eq_expression
                                   {extends=specless_expression}
 private specless_irregular_rune_expression ::= irregular_dotlus_expression |
                                                irregular_dottis_expression |
