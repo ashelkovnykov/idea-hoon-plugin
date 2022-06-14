@@ -21,51 +21,12 @@ import com.ashelkov.hoon.plugin.psi.HoonTypes;
 %eof}
 
 %{
-    int kelCount = 0;
-    int palCount = 0;
     int selCount = 0;
 %}
 
 //
-// INDIVIDUAL SYMBOLS
-//
-
-bar = "|"
-buc = "$"
-cab = "_"
-cen = "%"
-col = ":"
-com = ","
-dot = "."
-fas = "/"
-gal = "<"
-gar = ">"
-hax = "#"
-hep = "-"
-kel = "{"
-ker = "}"
-ket = "^"
-lus = "+"
-mic = ";"
-pal = "("
-pam = "&"
-par = ")"
-pat = "@"
-sel = "["
-ser = "]"
-sig = "~"
-tar = "*"
-tic = "`"
-tis = "="
-wut = "?"
-zap = "!"
-
-//
 // SPACING & DOCUMENTATION STRUCTURES
 //
-
-// ACE
-ace = " "
 
 // GAP
 newline = \R
@@ -167,11 +128,11 @@ cord_alphabet = [^\\'\r\n\u2028\u2029\u000B\u000C\u0085] | (\\\\) | (\\') | {str
 // TERM
 term_alphabet = [0-9a-z\-]
 term_text = [a-z] {term_alphabet}*
-term = "%" ({term_text} | "$")
+term = "%" {term_text}
 
 // TAPE
 tape_alphabet = [^\\\{\"\r\n\u2028\u2029\u000B\u000C\u0085] | (\\\\) | (\\\{) | (\\\") | {string_hex_digit}
-tape_interpol_alphabet = [^\}\r\n\u2028\u2029\u000B\u000C\u0085]
+tape_interpol_text = [^\}\r\n\u2028\u2029\u000B\u000C\u0085]
 
 // SHIP
 vowel = [aeiouy]
@@ -248,125 +209,340 @@ aura = {aura_plain} | {aura_width_only}
 // CHUM
 chum = {term} "." {nonzero_decimal_number}
 
+// CONSTANT
+all_numeric = {three_digit_decimal} | {unsigned_decimal} | {unsigned_binary} | {unsigned_hex} | {unsigned_base32} |
+              {unsigned_base58} | {unsigned_base64} | {signed_decimal} | {signed_binary} | {signed_hex} |
+              {signed_base32} | {signed_base58} | {signed_base64} | {single_precision_float} |
+              {double_precision_float} | {half_precision_float} | {quad_precision_float}
+simplest_cord = "'" {cord_alphabet}* "'"
+constant_component = {all_numeric} | {simplest_cord} | {ship} | {unscrambled_ship} | {ipv4} | {ipv6} | {absolute_date} |
+                     {relative_date} | {unicode_codepoint} | "|" | "$" | "&" | "~"
+constant = "%" {constant_component}
+
+//
+// IDENTIFIERS
+//
+
 // SKIN
 skin = {term_text}
 
 // CAMEL_CASE_SKIN
 camel_case_skin = {lowercase_text} ({lowercase_text} | {uppercase_text})*
 
+//
+// EXPRESSION FRAGMENTS
+//
+
+// CASK HEADER
+cask_mark = {three_digit_decimal} | {unsigned_decimal} | {skin} | "|" | "$" | "&"
+cask_header = {cask_mark} ("+" | "/")
+
+// FACE ASSIGNMENT
+face_assignment = {skin} "="
+
+face_block_type = {term} | {constant} | {aura} | "^" | "@" | "~" | "*" | "?"
+face_block_input = {skin} | {face_block_type}
+explicit_face_assignment = ({skin} "=")+ {face_block_input}
+default_face_assignment = "=" ({skin} "=")* {face_block_type}
+face_block_component = {explicit_face_assignment} | {default_face_assignment} | {face_block_input}
+
+non_block_alphabet = [^\[\]\r\n\u2028\u2029\u000B\u000C\u0085]
+face_block_lookahead = ({non_block_alphabet}+ | (({non_block_alphabet}* \[ .+ \])+ {non_block_alphabet}*)) "]="
+
+// PATHS
+path_component = {all_numeric} | {ship} | {unscrambled_ship} | {absolute_date} | {relative_date} | {ipv4} | {ipv6} |
+                 {unicode_codepoint} | {simplest_cord} | {knot} | {skin} | "$" | "~"
+simple_path = ("/"+ {path_component})+
+path_fragment = {simple_path} "/"+
+
+//
+// RUNE TOKENIZATION HELPERS
+//
+
+rune_trailer = {newline} | "  " | "::" | \(
+
+//
+// STATES
+//
+
 %state CORD
+%state MULTI_CORD
 
 %state TAPE
 %state TAPE_INTERPOL
-
-%state MULTI_CORD
 %state MULTI_TAPE
+
+%state FACE_BLOCK
+%state FACE_BLOCK_CLOSE
 
 %%
 
+// TODO: larks as tokens?
+// TODO: tree addresses as tokens?
+
 <YYINITIAL> {
-    {bar}                      { return HoonTypes.BAR; }
-    {buc}                      { return HoonTypes.BUC; }
-    {cab}                      { return HoonTypes.CAB; }
-    {cen}                      { return HoonTypes.CEN; }
-    {col}                      { return HoonTypes.COL; }
-    {com}                      { return HoonTypes.COM; }
-    {dot}                      { return HoonTypes.DOT; }
-    {fas}                      { return HoonTypes.FAS; }
-    {gal}                      { return HoonTypes.GAL; }
-    {gar}                      { return HoonTypes.GAR; }
-    {hax}                      { return HoonTypes.HAX; }
-    {hep}                      { return HoonTypes.HEP; }
-    {kel}                      { return HoonTypes.KEL; }
-    {ker}                      { return HoonTypes.KER; }
-    {ket}                      { return HoonTypes.KET; }
-    {lus}                      { return HoonTypes.LUS; }
-    {mic}                      { return HoonTypes.MIC; }
-    {pal}                      { return HoonTypes.PAL; }
-    {pam}                      { return HoonTypes.PAM; }
-    {par}                      { return HoonTypes.PAR; }
-    {pat}                      { return HoonTypes.PAT; }
-    {sel}                      { return HoonTypes.SEL; }
-    {ser}                      { return HoonTypes.SER; }
-    {sig}                      { return HoonTypes.SIG; }
-    {tar}                      { return HoonTypes.TAR; }
-    {tic}                      { return HoonTypes.TIC; }
-    {tis}                      { return HoonTypes.TIS; }
-    {wut}                      { return HoonTypes.WUT; }
-    {zap}                      { return HoonTypes.ZAP; }
+    "/$" / {rune_trailer}       { return HoonTypes.FASBUC; }
+    "/%" / {rune_trailer}       { return HoonTypes.FASCEN; }
+    "/-" / {rune_trailer}       { return HoonTypes.FASHEP; }
+    "/+" / {rune_trailer}       { return HoonTypes.FASLUS; }
+    "/~" / {rune_trailer}       { return HoonTypes.FASSIG; }
+    "/*" / {rune_trailer}       { return HoonTypes.FASTAR; }
+    "/=" / {rune_trailer}       { return HoonTypes.FASTIS; }
+    "/?" / {rune_trailer}       { return HoonTypes.FASWUT; }
 
-    {ace}                      { return HoonTypes.ACE; }
-    {gap}                      { return HoonTypes.GAP; }
-    {comment}                  { return HoonTypes.COMMENT; }
+    ".^" / {rune_trailer}       { return HoonTypes.DOTKET; }
+    ".+" / {rune_trailer}       { return HoonTypes.DOTLUS; }
+    ".*" / {rune_trailer}       { return HoonTypes.DOTTAR; }
+    ".=" / {rune_trailer}       { return HoonTypes.DOTTIS; }
+    ".?" / {rune_trailer}       { return HoonTypes.DOTWUT; }
 
-    {loobean}                  { return HoonTypes.LOOBEAN; }
-    {unsigned_decimal}         { return HoonTypes.UNSIGNED_DECIMAL; }
-    {unsigned_binary}          { return HoonTypes.UNSIGNED_BINARY; }
-    {unsigned_hex}             { return HoonTypes.UNSIGNED_HEXADECIMAL; }
-    {unsigned_base32}          { return HoonTypes.UNSIGNED_B32; }
-    {unsigned_base58}          { return HoonTypes.UNSIGNED_B58; }
-    {unsigned_base64}          { return HoonTypes.UNSIGNED_B64; }
-    {signed_decimal}           { return HoonTypes.SIGNED_DECIMAL; }
-    {signed_binary}            { return HoonTypes.SIGNED_BINARY; }
-    {signed_hex}               { return HoonTypes.SIGNED_HEXADECIMAL; }
-    {signed_base32}            { return HoonTypes.SIGNED_B32; }
-    {signed_base58}            { return HoonTypes.SIGNED_B58; }
-    {signed_base64}            { return HoonTypes.SIGNED_B64; }
-    {single_precision_float}   { return HoonTypes.FLOAT; }
-    {double_precision_float}   { return HoonTypes.DOUBLE; }
-    {half_precision_float}     { return HoonTypes.HALF; }
-    {quad_precision_float}     { return HoonTypes.QUAD; }
-    {knot}                     { return HoonTypes.KNOT; }
-    {term}                     { return HoonTypes.TERM; }
-    {ship}                     { return HoonTypes.SHIP; }
-    {unscrambled_ship}         { return HoonTypes.UNSCRAMBLED_SHIP; }
-    {ipv4}                     { return HoonTypes.IPV4; }
-    {ipv6}                     { return HoonTypes.IPV6; }
-    {absolute_date}            { return HoonTypes.ABSOLUTE_DATE; }
-    {relative_date}            { return HoonTypes.RELATIVE_DATE; }
-    {unicode_codepoint}        { return HoonTypes.UNICODE_CODEPOINT; }
-    {aura}                     { return HoonTypes.AURA; }
-    {skin}                     { return HoonTypes.SKIN; }
-    {chum}                     { return HoonTypes.CHUM; }
-    {three_digit_decimal}      { return HoonTypes.THREE_DIGIT_DECIMAL; }
-    {nonzero_decimal_number}   { return HoonTypes.NON_HOON_NUM; }
-    {camel_case_skin}          { return HoonTypes.CAMEL_CASE_SKIN; }
+    "!:" / {rune_trailer}       { return HoonTypes.ZAPCOL; }
+    "!," / {rune_trailer}       { return HoonTypes.ZAPCOM; }
+    "!." / {rune_trailer}       { return HoonTypes.ZAPDOT; }
+    "!<" / {rune_trailer}       { return HoonTypes.ZAPGAL; }
+    "!>" / {rune_trailer}       { return HoonTypes.ZAPGAR; }
+    "!;" / {rune_trailer}       { return HoonTypes.ZAPMIC; }
+    "!@" / {rune_trailer}       { return HoonTypes.ZAPPAT; }
+    "!=" / {rune_trailer}       { return HoonTypes.ZAPTIS; }
+    "!?" / {rune_trailer}       { return HoonTypes.ZAPWUT; }
+    "!!"                        { return HoonTypes.ZAPZAP; }
 
-    "'''" {newline}            { yybegin(MULTI_CORD); }
-    "'"                        { yybegin(CORD); }
+    "=|" / {rune_trailer}       { return HoonTypes.TISBAR; }
+    "=:" / {rune_trailer}       { return HoonTypes.TISCOL; }
+    "=," / {rune_trailer}       { return HoonTypes.TISCOM; }
+    "=." / {rune_trailer}       { return HoonTypes.TISDOT; }
+    "=/" / {rune_trailer}       { return HoonTypes.TISFAS; }
+    "=<" / {rune_trailer}       { return HoonTypes.TISGAL; }
+    "=>" / {rune_trailer}       { return HoonTypes.TISGAR; }
+    "=-" / {rune_trailer}       { return HoonTypes.TISHEP; }
+    "=^" / {rune_trailer}       { return HoonTypes.TISKET; }
+    "=+" / {rune_trailer}       { return HoonTypes.TISLUS; }
+    "=;" / {rune_trailer}       { return HoonTypes.TISMIC; }
+    "=~" / {rune_trailer}       { return HoonTypes.TISSIG; }
+    "=*" / {rune_trailer}       { return HoonTypes.TISTAR; }
+    "=?" / {rune_trailer}       { return HoonTypes.TISWUT; }
 
-    \"\"\" {newline}           { yybegin(MULTI_TAPE); }
-    \"                         { yybegin(TAPE); }
+    "?|" / {rune_trailer}       { return HoonTypes.WUTBAR; }
+    "?:" / {rune_trailer}       { return HoonTypes.WUTCOL; }
+    "?." / {rune_trailer}       { return HoonTypes.WUTDOT; }
+    "?<" / {rune_trailer}       { return HoonTypes.WUTGAL; }
+    "?>" / {rune_trailer}       { return HoonTypes.WUTGAR; }
+    "?-" / {rune_trailer}       { return HoonTypes.WUTHEP; }
+    "?^" / {rune_trailer}       { return HoonTypes.WUTKET; }
+    "?+" / {rune_trailer}       { return HoonTypes.WUTLUS; }
+    "?&" / {rune_trailer}       { return HoonTypes.WUTPAM; }
+    "?@" / {rune_trailer}       { return HoonTypes.WUTPAT; }
+    "?~" / {rune_trailer}       { return HoonTypes.WUTSIG; }
+    "?=" / {rune_trailer}       { return HoonTypes.WUTTIS; }
+    "?!" / {rune_trailer}       { return HoonTypes.WUTZAP; }
+
+    "|$" / {rune_trailer}       { return HoonTypes.BARBUC; }
+    "|_" / {rune_trailer}       { return HoonTypes.BARCAB; }
+    "|%" / {rune_trailer}       { return HoonTypes.BARCEN; }
+    "|:" / {rune_trailer}       { return HoonTypes.BARCOL; }
+    "|." / {rune_trailer}       { return HoonTypes.BARDOT; }
+    "|-" / {rune_trailer}       { return HoonTypes.BARHEP; }
+    "|^" / {rune_trailer}       { return HoonTypes.BARKET; }
+    "|@" / {rune_trailer}       { return HoonTypes.BARPAT; }
+    "|~" / {rune_trailer}       { return HoonTypes.BARSIG; }
+    "|*" / {rune_trailer}       { return HoonTypes.BARTAR; }
+    "|=" / {rune_trailer}       { return HoonTypes.BARTIS; }
+    "|?" / {rune_trailer}       { return HoonTypes.BARWUT; }
+
+    ":_" / {rune_trailer}       { return HoonTypes.COLCAB; }
+    ":-" / {rune_trailer}       { return HoonTypes.COLHEP; }
+    ":^" / {rune_trailer}       { return HoonTypes.COLKET; }
+    ":+" / {rune_trailer}       { return HoonTypes.COLLUS; }
+    ":~" / {rune_trailer}       { return HoonTypes.COLSIG; }
+    ":*" / {rune_trailer}       { return HoonTypes.COLTAR; }
+
+    "%_" / {rune_trailer}       { return HoonTypes.CENCAB; }
+    "%:" / {rune_trailer}       { return HoonTypes.CENCOL; }
+    "%." / {rune_trailer}       { return HoonTypes.CENDOT; }
+    "%-" / {rune_trailer}       { return HoonTypes.CENHEP; }
+    "%^" / {rune_trailer}       { return HoonTypes.CENKET; }
+    "%+" / {rune_trailer}       { return HoonTypes.CENLUS; }
+    "%~" / {rune_trailer}       { return HoonTypes.CENSIG; }
+    "%*" / {rune_trailer}       { return HoonTypes.CENTAR; }
+    "%=" / {rune_trailer}       { return HoonTypes.CENTIS; }
+
+    "^|" / {rune_trailer}       { return HoonTypes.KETBAR; }
+    "^:" / {rune_trailer}       { return HoonTypes.KETCOL; }
+    "^." / {rune_trailer}       { return HoonTypes.KETDOT; }
+    "^-" / {rune_trailer}       { return HoonTypes.KETHEP; }
+    "^+" / {rune_trailer}       { return HoonTypes.KETLUS; }
+    "^&" / {rune_trailer}       { return HoonTypes.KETPAM; }
+    "^~" / {rune_trailer}       { return HoonTypes.KETSIG; }
+    "^*" / {rune_trailer}       { return HoonTypes.KETTAR; }
+    "^=" / {rune_trailer}       { return HoonTypes.KETTIS; }
+    "^?" / {rune_trailer}       { return HoonTypes.KETWUT; }
+
+    "$|" / {rune_trailer}       { return HoonTypes.BUCBAR; }
+    "$_" / {rune_trailer}       { return HoonTypes.BUCCAB; }
+    "$%" / {rune_trailer}       { return HoonTypes.BUCCEN; }
+    "$:" / {rune_trailer}       { return HoonTypes.BUCCOL; }
+    "$<" / {rune_trailer}       { return HoonTypes.BUCGAL; }
+    "$>" / {rune_trailer}       { return HoonTypes.BUCGAR; }
+    "$-" / {rune_trailer}       { return HoonTypes.BUCHEP; }
+    "$;" / {rune_trailer}       { return HoonTypes.BUCMIC; }
+    "$^" / {rune_trailer}       { return HoonTypes.BUCKET; }
+    "$&" / {rune_trailer}       { return HoonTypes.BUCPAM; }
+    "$@" / {rune_trailer}       { return HoonTypes.BUCPAT; }
+    "$~" / {rune_trailer}       { return HoonTypes.BUCSIG; }
+    "$=" / {rune_trailer}       { return HoonTypes.BUCTIS; }
+    "$?" / {rune_trailer}       { return HoonTypes.BUCWUT; }
+
+    ";:" / {rune_trailer}       { return HoonTypes.MICCOL; }
+    ";/" / {rune_trailer}       { return HoonTypes.MICFAS; }
+    ";<" / {rune_trailer}       { return HoonTypes.MICGAL; }
+    ";+" / {rune_trailer}       { return HoonTypes.MICLUS; }
+    ";;" / {rune_trailer}       { return HoonTypes.MICMIC; }
+    ";~" / {rune_trailer}       { return HoonTypes.MICSIG; }
+    ";*" / {rune_trailer}       { return HoonTypes.MICTAR; }
+    ";=" / {rune_trailer}       { return HoonTypes.MICTIS; }
+      
+    "~|" / {rune_trailer}       { return HoonTypes.SIGBAR; }
+    "~$" / {rune_trailer}       { return HoonTypes.SIGBUC; }
+    "~_" / {rune_trailer}       { return HoonTypes.SIGCAB; }
+    "~%" / {rune_trailer}       { return HoonTypes.SIGCEN; }
+    "~/" / {rune_trailer}       { return HoonTypes.SIGFAS; }
+    "~<" / {rune_trailer}       { return HoonTypes.SIGGAL; }
+    "~>" / {rune_trailer}       { return HoonTypes.SIGGAR; }
+    "~+" / {rune_trailer}       { return HoonTypes.SIGLUS; }
+    "~&" / {rune_trailer}       { return HoonTypes.SIGPAM; }
+    "~=" / {rune_trailer}       { return HoonTypes.SIGTIS; }
+    "~?" / {rune_trailer}       { return HoonTypes.SIGWUT; }
+    "~!" / {rune_trailer}       { return HoonTypes.SIGZAP; }
+
+    "+|"                        { return HoonTypes.LUSBAR; }
+    "+$"                        { return HoonTypes.LUSBUC; }
+    "++"                        { return HoonTypes.LUSLUS; }
+    "+*"                        { return HoonTypes.LUSTAR; }
+
+    "--"                        { return HoonTypes.HEPHEP; }
+    "=="                        { return HoonTypes.TISTIS; }
+
+    "|"                         { return HoonTypes.BAR; }
+    "$"                         { return HoonTypes.BUC; }
+    "_"                         { return HoonTypes.CAB; }
+    ":"                         { return HoonTypes.COL; }
+    ","                         { return HoonTypes.COM; }
+    "."                         { return HoonTypes.DOT; }
+    "/"                         { return HoonTypes.FAS; }
+    "<"                         { return HoonTypes.GAL; }
+    ">"                         { return HoonTypes.GAR; }
+    "#"                         { return HoonTypes.HAX; }
+    "-"                         { return HoonTypes.HEP; }
+    "^"                         { return HoonTypes.KET; }
+    "+"                         { return HoonTypes.LUS; }
+    ";"                         { return HoonTypes.MIC; }
+    "("                         { return HoonTypes.PAL; }
+    "&"                         { return HoonTypes.PAM; }
+    ")"                         { return HoonTypes.PAR; }
+    "@"                         { return HoonTypes.PAT; }
+    "["                         { return HoonTypes.SEL; }
+    "]"                         { return HoonTypes.SER; }
+    "~"                         { return HoonTypes.SIG; }
+    "*"                         { return HoonTypes.TAR; }
+    "`"                         { return HoonTypes.TIC; }
+    "="                         { return HoonTypes.TIS; }
+    "?"                         { return HoonTypes.WUT; }
+    "!"                         { return HoonTypes.ZAP; }
+
+    " "                         { return HoonTypes.ACE; }
+    {gap}                       { return HoonTypes.GAP; }
+    {comment}                   { return HoonTypes.COMMENT; }
+
+    {loobean}                   { return HoonTypes.LOOBEAN; }
+    {unsigned_decimal}          { return HoonTypes.UNSIGNED_DECIMAL; }
+    {unsigned_binary}           { return HoonTypes.UNSIGNED_BINARY; }
+    {unsigned_hex}              { return HoonTypes.UNSIGNED_HEXADECIMAL; }
+    {unsigned_base32}           { return HoonTypes.UNSIGNED_B32; }
+    {unsigned_base58}           { return HoonTypes.UNSIGNED_B58; }
+    {unsigned_base64}           { return HoonTypes.UNSIGNED_B64; }
+    {signed_decimal}            { return HoonTypes.SIGNED_DECIMAL; }
+    {signed_binary}             { return HoonTypes.SIGNED_BINARY; }
+    {signed_hex}                { return HoonTypes.SIGNED_HEXADECIMAL; }
+    {signed_base32}             { return HoonTypes.SIGNED_B32; }
+    {signed_base58}             { return HoonTypes.SIGNED_B58; }
+    {signed_base64}             { return HoonTypes.SIGNED_B64; }
+    {single_precision_float}    { return HoonTypes.FLOAT; }
+    {double_precision_float}    { return HoonTypes.DOUBLE; }
+    {half_precision_float}      { return HoonTypes.HALF; }
+    {quad_precision_float}      { return HoonTypes.QUAD; }
+    {knot}                      { return HoonTypes.KNOT; }
+    {term}                      { return HoonTypes.TERM; }
+    {ship}                      { return HoonTypes.SHIP; }
+    {unscrambled_ship}          { return HoonTypes.UNSCRAMBLED_SHIP; }
+    {ipv4}                      { return HoonTypes.IPV4; }
+    {ipv6}                      { return HoonTypes.IPV6; }
+    {absolute_date}             { return HoonTypes.ABSOLUTE_DATE; }
+    {relative_date}             { return HoonTypes.RELATIVE_DATE; }
+    {unicode_codepoint}         { return HoonTypes.UNICODE_CODEPOINT; }
+    {aura}                      { return HoonTypes.AURA; }
+    {chum}                      { return HoonTypes.CHUM; }
+    {constant}                  { return HoonTypes.CONSTANT; }
+    {three_digit_decimal}       { return HoonTypes.THREE_DIGIT_DECIMAL; }
+    {nonzero_decimal_number}    { return HoonTypes.NON_HOON_NUM; }
+
+    {skin}                      { return HoonTypes.SKIN; }
+    {camel_case_skin}           { return HoonTypes.CAMEL_CASE_SKIN; }
+
+    {cask_header}               { return HoonTypes.CASK_HEADER; }
+    {face_assignment}           { return HoonTypes.FACE_ASSIGNMENT; }
+    {simple_path}               { return HoonTypes.SIMPLE_PATH; }
+    {path_fragment}             { return HoonTypes.PATH_FRAGMENT; }
+
+    "'''" {newline}             { yybegin(MULTI_CORD); }
+    "'"                         { yybegin(CORD); }
+
+    \"\"\" {newline}            { yybegin(MULTI_TAPE); }
+    \"                          { yybegin(TAPE); }
+
+    \[ / {face_block_lookahead} { ++selCount; yybegin(FACE_BLOCK); }
 }
 
 <CORD> {
-    {cord_alphabet}+           { /* do nothing */ }
-    \\ {newline} " "* "/"      { /* do nothing */ }
-    "'"                        { yybegin(YYINITIAL); return HoonTypes.SIMPLE_CORD; }
-}
-
-<TAPE> {
-    "{"                        { ++kelCount; yybegin(TAPE_INTERPOL); }
-    {tape_alphabet}+           { /* do nothing */ }
-    \" "." {newline} " "* \"   { /* do nothing */ }
-    \"                         { yybegin(YYINITIAL); assert(kelCount == 0); return HoonTypes.SIMPLE_TAPE; }
-}
-
-<TAPE_INTERPOL> {
-    {tape_interpol_alphabet}+  { /* do nothing */ }
-    "}"                        { --kelCount; if (kelCount == 0) yybegin(TAPE); }
+    {cord_alphabet}+            { /* do nothing */ }
+    \\ {newline} " "* "/"       { /* do nothing */ }
+    "'"                         { yybegin(YYINITIAL); return HoonTypes.SIMPLE_CORD; }
 }
 
 <MULTI_CORD> {
-    .                          { /* do nothing */ }
-    {newline}                  { /* do nothing */ }
-    {newline} " "* "'''"       { yybegin(YYINITIAL); return HoonTypes.MULTILINE_CORD; }
+    .                           { /* do nothing */ }
+    {newline}                   { /* do nothing */ }
+    {newline} " "* "'''"        { yybegin(YYINITIAL); return HoonTypes.MULTILINE_CORD; }
+}
+
+<TAPE> {
+    "{"                         { yybegin(TAPE_INTERPOL); }
+    {tape_alphabet}+            { /* do nothing */ }
+    \" "." {newline} " "* \"    { /* do nothing */ }
+    \"                          { yybegin(YYINITIAL); return HoonTypes.SIMPLE_TAPE; }
+}
+
+<TAPE_INTERPOL> {
+    {tape_interpol_text}+       { /* do nothing */ }
+    "}"                         { yybegin(TAPE); }
 }
 
 <MULTI_TAPE> {
-    .                          { /* do nothing */ }
-    {newline}                  { /* do nothing */ }
-    {newline} " "* \"\"\"      { yybegin(YYINITIAL); return HoonTypes.MULTILINE_TAPE; }
+    .+                          { /* do nothing */ }
+    {newline}                   { /* do nothing */ }
+    {newline} " "* \"\"\"       { yybegin(YYINITIAL); return HoonTypes.MULTILINE_TAPE; }
 }
 
-[^]                            { return TokenType.BAD_CHARACTER; }
+// [[* wit] [* [@ @] *] [wit *]]=wer
+<FACE_BLOCK> {
+    "["                         { ++selCount; }
+    {face_block_component} " "  { /* do nothing */ }
+    {face_block_component} / \] { yybegin(FACE_BLOCK_CLOSE); }
+}
+
+<FACE_BLOCK_CLOSE> {
+    "]"                         { --selCount; }
+    "] "                        { --selCount; assert(selCount != 0); yybegin(FACE_BLOCK); }
+    "="                         { assert(selCount == 0); yybegin(YYINITIAL); return HoonTypes.BLOCK_FACE_ASSIGNMENT; }
+}
+
+[^]                             { return TokenType.BAD_CHARACTER; }

@@ -44,6 +44,11 @@ entire Hoon compiler in `.bnf` format. For that reason, some syntax errors may s
 
 With that in mind, due to tokenization issues, the following **correct** Hoon language features are currently marked as
 incorrect by the plugin:
+- Some uses of irregular wutzap (`?!`) (e.g. `!=(1 2)` interpreted as poorly-formed zaptis expression instead of
+`?!  .=  1  2`)
+- Some uses of irregular tisgal (`=<`) (e.g. `result:~(arm core arg)` interpreted as poorly-formed colsig expression 
+instead of `=<  result  %~  arm  core  arg`)
+- Some uses of irregular colhep (`:-`) (e.g. `-^+` interpreted as poorly-formed ketlus expression instead of `:-  -  +`)
 - siggal (`~<`) and siggar (`~>`) runes, with input `p` taking form `[p=term q=hoon]`, and using form `%foo.hoon`, where
 `hoon` begins with a number
 - Hoon 151 mold syntax (e.g. `$~`)

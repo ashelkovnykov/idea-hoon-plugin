@@ -14,11 +14,15 @@ import java.util.Map;
 public class HoonColorSettingsPage implements ColorSettingsPage {
 
     private static final AttributesDescriptor[] DESCRIPTORS = new AttributesDescriptor[]{
+
+            new AttributesDescriptor("Runes//Hoon", HoonSyntaxHighlighter.RUNE),
+            new AttributesDescriptor("Runes//Ford", HoonSyntaxHighlighter.FORD_RUNE),
+
             new AttributesDescriptor("Loobeans", HoonSyntaxHighlighter.LOOBEAN),
 
-            new AttributesDescriptor("Signed numbers", HoonSyntaxHighlighter.SIGNED_NUMBER),
-            new AttributesDescriptor("Unsigned numbers", HoonSyntaxHighlighter.UNSIGNED_NUMBER),
-            new AttributesDescriptor("Floating point numbers", HoonSyntaxHighlighter.FLOATING_POINT),
+            new AttributesDescriptor("Numbers//Signed", HoonSyntaxHighlighter.SIGNED_NUMBER),
+            new AttributesDescriptor("Numbers//Unsigned", HoonSyntaxHighlighter.UNSIGNED_NUMBER),
+            new AttributesDescriptor("Numbers//Floating point", HoonSyntaxHighlighter.FLOATING_POINT),
 
             new AttributesDescriptor("Ship names", HoonSyntaxHighlighter.SHIP),
 
@@ -26,18 +30,19 @@ public class HoonColorSettingsPage implements ColorSettingsPage {
 
             new AttributesDescriptor("Dates", HoonSyntaxHighlighter.DATE),
 
-            new AttributesDescriptor("Strings", HoonSyntaxHighlighter.STRING),
-            new AttributesDescriptor("Knots", HoonSyntaxHighlighter.KNOT),
+            new AttributesDescriptor("Strings//Cord", HoonSyntaxHighlighter.CORD),
+            new AttributesDescriptor("Strings//Tape", HoonSyntaxHighlighter.TAPE),
+            new AttributesDescriptor("Strings//Knot", HoonSyntaxHighlighter.KNOT),
+
             new AttributesDescriptor("Terms", HoonSyntaxHighlighter.TERM),
+            new AttributesDescriptor("Constants", HoonSyntaxHighlighter.CONSTANT),
+
+            new AttributesDescriptor("Paths", HoonSyntaxHighlighter.PATH),
+
             new AttributesDescriptor("Unicode codepoints", HoonSyntaxHighlighter.UNICODE_POINT),
 
-            new AttributesDescriptor("Operators", HoonSyntaxHighlighter.OPERATOR),
-
-            new AttributesDescriptor("Identifiers", HoonSyntaxHighlighter.IDENTIFIER),
-
-            new AttributesDescriptor("Braces", HoonSyntaxHighlighter.BRACES),
-            new AttributesDescriptor("Brackets", HoonSyntaxHighlighter.BRACKETS),
-            new AttributesDescriptor("Parentheses", HoonSyntaxHighlighter.PARENTHESES),
+            new AttributesDescriptor("Grouping//Brackets", HoonSyntaxHighlighter.BRACKETS),
+            new AttributesDescriptor("Grouping//Parentheses", HoonSyntaxHighlighter.PARENTHESES),
 
             new AttributesDescriptor("Comment", HoonSyntaxHighlighter.COMMENT)
     };
@@ -57,7 +62,8 @@ public class HoonColorSettingsPage implements ColorSettingsPage {
     @NotNull
     @Override
     public String getDemoText() {
-        return "=<  :: comment\n" +
+        return "/+  some-lib" +
+                "=<  :: comment\n" +
                 "  =>  [a @]=[1 2]\n" +
                 "  (add 2 2)\n" +
                 ":*  %.y\n" +
@@ -88,7 +94,9 @@ public class HoonColorSettingsPage implements ColorSettingsPage {
                 "    \"tape\"\n" +
                 "    ~.knot\n" +
                 "    %term\n" +
+                "    %12.345\n" +
                 "    ~-~1F44C.\n" +
+                "    /a/b/[`@ta`(cat 3 %c %d)]/e\n" +
                 "==";
     }
 

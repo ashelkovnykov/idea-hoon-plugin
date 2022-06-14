@@ -264,11 +264,6 @@
       <option name="FOREGROUND" value="466dff" />
     </value>
   </option>
-  <option name="HOON_OPERATOR">
-    <value>
-      <option name="FOREGROUND" value="0" />
-    </value>
-  </option>
   <option name="HOON_PARENTEHSES">
     <value>
       <option name="FOREGROUND" value="9a9a9a" />
